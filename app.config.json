@@ -1,0 +1,4 @@
+{
+  "appName": "Module",
+  "databaseUrl": "file:./data/sqlite.db"
+}
