@@ -1,11 +1,14 @@
 import * as Schema from "zod";
 import { configReg } from "../registries.ts";
+import { createHmac, randomBytes } from "node:crypto";
 
 const AppKeyConfig = Schema.object({
   appKey: Schema.string()
     .optional()
-    .default(() =>
-      Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("hex")
+    .default(
+      createHmac("sha256", randomBytes(32))
+        .update("model:config.app.appKey")
+        .digest("hex"),
     ),
 }).register(configReg, {
   urn: "model:config.app.appKey",
