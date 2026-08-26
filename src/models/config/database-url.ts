@@ -4,6 +4,7 @@ import { configReg } from "../registries.ts";
 const DatabaseUrlConfig = Schema.object({
   databaseUrl: Schema.url().nonempty(),
 }).register(configReg, {
+  urn: "model:config.app.databaseUrl",
   key: "databaseUrl",
   title: "Database URL",
   description: "Local/remote database URL connection string.",

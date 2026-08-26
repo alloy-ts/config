@@ -2,6 +2,7 @@ import { type $output, registry, type ZodObject } from "zod";
 
 /** Metadata base for all registries.*/
 type MetadataBase = {
+  urn: string;
   title?: string;
   description?: string;
   moduleUrl?: string;

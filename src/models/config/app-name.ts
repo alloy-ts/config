@@ -4,6 +4,7 @@ import { configReg } from "../registries.ts";
 const AppNameConfig = Schema.object({
   appName: Schema.string().nonempty(),
 }).register(configReg, {
+  urn: "model:config.app.appName",
   key: "appName",
   title: "App Name",
   description: "Huamen-friendly name for the app.",
