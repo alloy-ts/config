@@ -1,5 +1,5 @@
 {
-  "name": "@lib/module",
+  "name": "@alloy-ts/config",
   "version": "0.0.0",
   "type": "module",
   "exports": {
