@@ -2,7 +2,6 @@
   "name": "@lib/module",
   "version": "0.0.0",
   "type": "module",
-  "main": "src/main.ts",
   "exports": {
     ".": "./dist/main.mjs",
     "./package.json": "./package.json"

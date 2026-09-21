@@ -8,7 +8,7 @@ const DatabaseUrlConfig = Schema.object({
   key: "databaseUrl",
   title: "Database URL",
   description: "Local/remote database URL connection string.",
-  grouping: "app",
+  grouping: ["database", "app"],
   moduleUrl: import.meta.url,
   examples: [{ databaseUrl: "file:./data/sqlite.db" }],
 });
