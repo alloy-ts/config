@@ -1,0 +1,57 @@
+# Git Repository Configurations
+[core]
+    compression = 9
+    fsmonitor = true
+    untrackedCache = true
+    sparseCheckoutCone = true
+    gitproxy = \"ssh\" for github.com
+    gitproxy = default-proxy ; for all the rest
+	whitespace = trailing-space
+[commit]
+	gpgSign = true
+	verbose = true
+[gpg]
+	format = ssh
+[init]
+	defaultBranch = main
+[help]
+	autoCorrect = prompt
+[diff]
+	algorithm = histogram
+    colorMoved = plain
+    mnemonicPrefix = true
+	renames = true
+[branch]
+	sort = -committerdate
+[tag]
+	sort = -version:refname
+	gpgSign = true
+[column]
+	ui = auto
+[extensions]
+    relativeWorktrees = true
+    worktreeConfig = true
+    sparseIndex = true
+[worktree]
+    guessRemote = true
+    useRelativePaths = true
+[push]
+	simple = true
+	autoSetupRemote = true
+	followTags = true
+[pull]
+	rebase = true
+[rebase]
+	autoSquash = true
+	autoStash = true
+	updateRefs = true
+[merge]
+    conflictstyle = zdiff3
+[rerere]
+	enabled = true
+	autoUpdate = true
+[maintenance]
+    auto = true
+    strategy = incremental
+[status]
+	branch = true

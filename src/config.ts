@@ -1,10 +1,48 @@
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import * as Schema from "zod";
+import { parse as parseYaml } from "yaml";
 import { groupingsOf } from "./models/registries.ts";
-import { AppKeyConfig } from "./models/config/app-key.ts";
-import { AppNameConfig } from "./models/config/app-name.ts";
-import { DatabaseUrlConfig } from "./models/config/database-url.ts";
+import {
+  ConfigConfig,
+  DEFAULT_CODEGEN,
+  DEFAULT_GLOBAL_CONFIG_DIRS,
+} from "./models/config/std.ts";
+import { createDefineConfig, createDefineConfigs } from "./define-config.ts";
+
+export { createDefineConfig, createDefineConfigs };
+import { ProjectConfig } from "./models/config/project.ts";
+import { OrgConfig } from "./models/config/org.ts";
+import { PackageConfig } from "./models/config/package.ts";
+import { TsconfigConfig } from "./models/config/tsconfig.ts";
+import { DenoConfig } from "./models/config/deno.ts";
+import { ContainerComposeConfig } from "./models/config/container-compose.ts";
+import { KubeConfig } from "./models/config/kube.ts";
+import { ContainerConfig } from "./models/config/container.ts";
+export { defineProjectConfig } from "./models/config/project.ts";
+export { defineOrgConfig } from "./models/config/org.ts";
+export { definePackageConfig } from "./models/config/package.ts";
+export { defineTypeScriptConfig } from "./models/config/tsconfig.ts";
+export { defineDenoConfig } from "./models/config/deno.ts";
+export {
+  defineContainerCompose,
+  defineContainerConfig,
+  defineContainerNetwork,
+  defineContainerSecret,
+  defineContainerService,
+  defineContainerVolume,
+  type UpOptions,
+  UpOptionsSchema,
+} from "./models/config/container-compose.ts";
+export { defineKubeConfig } from "./models/config/kube.ts";
+export { defineContainerConfiguration } from "./models/config/container.ts";
+export {
+  DEFAULT_CODEGEN,
+  DEFAULT_GLOBAL_CONFIG_DIRS,
+  which,
+} from "./models/config/std.ts";
 
 /* -------------------------------------------------------------------------- */
 /*                                Types & Helpers                             */
@@ -36,69 +74,33 @@ export type UserConfigExport<T extends Schema.ZodObject> =
  */
 export type DefineConfig = ReturnType<typeof createDefineConfig>;
 
+/**
+ * Where a configuration value lives.
+ *
+ * - `"local"`: the value belongs to a single group and is the most specific
+ *   one, so it wins over a global value for the same key.
+ * - `"global"`: the value applies to every group as a fallback; any
+ *   group-local value for the same key still takes precedence.
+ */
+export type ConfigScope = "local" | "global";
+
+/** Scope used when a write does not specify one. */
+export const DEFAULT_CONFIG_SCOPE: ConfigScope = "local";
+
+/**
+ * Options for {@link Config.set} / {@link setConfig}.
+ */
+export interface SetConfigOptions {
+  /**
+   * Where the value is stored. Defaults to {@link DEFAULT_CONFIG_SCOPE}
+   * (`"local"`), so existing calls keep their group-scoped behavior.
+   */
+  scope?: ConfigScope;
+}
+
 /* -------------------------------------------------------------------------- */
 /*                            Authoring & Discovery                           */
 /* -------------------------------------------------------------------------- */
-
-/**
- * Build a schema-bound `defineConfig` helper.
- *
- * The returned `defineConfig` validates object/array literals eagerly
- * against `schema`, and passes function factories through untouched (they
- * are validated lazily when invoked).
- */
-export function createDefineConfig<T extends Schema.ZodObject>(schema: T) {
-  function defineConfig(options: UserConfig<T>): UserConfig<T>;
-  function defineConfig(options: UserConfig<T>[]): UserConfig<T>[];
-  function defineConfig(options: UserConfigFn<T>): UserConfigFn<T>;
-  function defineConfig(options: UserConfigExport<T>): UserConfigExport<T>;
-  function defineConfig(options: UserConfigExport<T>): UserConfigExport<T> {
-    if (typeof options === "function") {
-      return options;
-    }
-    if (Array.isArray(options)) {
-      return schema.array().parse(options);
-    }
-    return schema.parse(options);
-  }
-
-  return defineConfig;
-}
-
-/**
- * Build one `defineConfig` helper per grouping from any set of config schemas.
- *
- * Groupings are read from the registry via {@link groupingsOf}, so callers
- * never hardcode grouping names. A schema registered under several groupings
- * (an ordered fallback list, e.g. `["database", "app"]`) contributes its fields
- * to each grouping — required under its primary (first) grouping, optional
- * under the rest, because those are only fallback file locations.
- */
-export function createDefineConfigs(
-  schemas: readonly Schema.ZodObject[],
-): Map<string, DefineConfig> {
-  const shapes = new Map<string, Record<string, Schema.ZodType>>();
-
-  for (const schema of schemas) {
-    const groupings = groupingsOf(schema) ?? [];
-    const fields = Object.entries(schema.shape);
-
-    groupings.forEach((grouping, index) => {
-      const shape = shapes.get(grouping) ?? {};
-      for (const [key, field] of fields) {
-        shape[key] = index === 0 ? field : field.optional();
-      }
-      shapes.set(grouping, shape);
-    });
-  }
-
-  return new Map(
-    [...shapes].map(([grouping, shape]) => [
-      grouping,
-      createDefineConfig(Schema.object(shape)),
-    ]),
-  );
-}
 
 /**
  * Resolve a schema's registered grouping preference list, failing fast when it
@@ -111,7 +113,7 @@ export function requireGroupings(
   if (groupings === undefined || groupings.length === 0) {
     throw new Error(
       "Config schema is not registered with a `grouping`; register it so the " +
-        "loader can locate `<grouping>.config.{ts,js,json}` or `<grouping>.{ts,js,json}`.",
+        "loader can locate `<grouping>.config.{ts,js,json,yaml,yml}` or `<grouping>.{ts,js,json,yaml,yml}`.",
     );
   }
   return groupings;
@@ -147,7 +149,108 @@ export function configPreferences(
  * `.config` (e.g. `package.ts`).
  */
 const SUFFIXES = [".config", ""] as const;
-const EXTENSIONS = [".ts", ".js", ".json"] as const;
+const EXTENSIONS = [".ts", ".js", ".json", ".yaml", ".yml"] as const;
+
+/**
+ * Helper to expand ~ to home directory.
+ */
+export function expandHomeDir(pathStr: string): string {
+  if (pathStr === "~") {
+    return homedir();
+  }
+  if (pathStr.startsWith("~/") || pathStr.startsWith("~\\")) {
+    return resolve(homedir(), pathStr.slice(2));
+  }
+  return resolve(process.cwd(), pathStr);
+}
+
+/**
+ * The `mergeWithGlobal` list currently in effect: the one declared by the
+ * loaded config, or {@link DEFAULT_GLOBAL_CONFIG_DIRS} when none was loaded.
+ */
+export function mergeWithGlobal(): readonly string[] {
+  const config = defaultConfig.get<{ mergeWithGlobal?: unknown }>("config");
+  if (
+    config !== null &&
+    typeof config === "object" &&
+    Array.isArray(config.mergeWithGlobal) &&
+    config.mergeWithGlobal.length > 0
+  ) {
+    return config.mergeWithGlobal as string[];
+  }
+  return DEFAULT_GLOBAL_CONFIG_DIRS;
+}
+
+/**
+ * Directory that global-scope config is written to: the first entry of
+ * `mergeWithGlobal` (default `~/.config`, then `~`) that exists on disk,
+ * falling back to the first entry when none of them exist yet (the write
+ * creates it).
+ *
+ * @param list Override for the `mergeWithGlobal` list to read from.
+ */
+export function globalConfigDir(
+  list: readonly string[] = mergeWithGlobal(),
+): string {
+  const dirs = list.length > 0 ? list : DEFAULT_GLOBAL_CONFIG_DIRS;
+  const expanded = dirs.map((dir) => expandHomeDir(dir));
+  return expanded.find((dir) => existsSync(dir)) ?? expanded[0];
+}
+
+/**
+ * Path of the global config file a grouping's global values are written to:
+ * `<globalConfigDir>/<grouping>.config.json`, e.g. `~/.config/package.config.json`.
+ *
+ * The `.config.json` name is one of the loader's candidates
+ * (`<grouping>.config.{ts,js,json}`), so written values are picked up on the
+ * next load.
+ *
+ * @param grouping The configuration grouping (e.g. "app", "package").
+ * @param list Override for the `mergeWithGlobal` list to read from.
+ */
+export function globalConfigFile(
+  grouping: string,
+  list?: readonly string[],
+): string {
+  return resolve(globalConfigDir(list), `${grouping}.config.json`);
+}
+
+/**
+ * Persist one key/value into a grouping's global config file, merging it into
+ * whatever JSON is already there.
+ *
+ * Throws when the target exists but is not parseable JSON, rather than
+ * clobbering the user's global config.
+ */
+export function writeGlobalConfigValue(
+  grouping: string,
+  key: string,
+  value: unknown,
+): void {
+  const file = globalConfigFile(grouping);
+  let existing: Record<string, unknown> = {};
+
+  if (existsSync(file)) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(file, "utf8")) as unknown;
+    } catch {
+      throw new Error(`Unable to parse global config file "${file}" as JSON.`);
+    }
+    if (
+      parsed === null || typeof parsed !== "object" || Array.isArray(parsed)
+    ) {
+      throw new Error(
+        `Global config file "${file}" must contain a JSON object.`,
+      );
+    }
+    existing = parsed as Record<string, unknown>;
+  }
+
+  existing[key] = value;
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
+}
 
 /**
  * `ERR_MODULE_NOT_FOUND` is raised when the candidate file does not exist.
@@ -158,7 +261,8 @@ const isModuleNotFound = (error: unknown): boolean =>
   typeof error === "object" &&
   error !== null &&
   "code" in error &&
-  (error as { code?: unknown }).code === "ERR_MODULE_NOT_FOUND";
+  ((error as { code?: unknown }).code === "ERR_MODULE_NOT_FOUND" ||
+    (error as { code?: unknown }).code === "ENOENT");
 
 /** A single resolved config file: which grouping it satisfied and its content. */
 export interface LoadedConfigFile {
@@ -171,34 +275,67 @@ export interface LoadedConfigFile {
 }
 
 /**
- * Resolve and load the config file for one grouping-preference list.
+ * Resolve and load the config file for one grouping-preference list from baseDir.
  *
  * Each list is a fallback chain: its groupings are tried in order and the first
  * one with an existing `<grouping>.config.*` or `<grouping>.*` file wins.
- * Returns `undefined` when no file exists for the list. Files are resolved relative to
- * the current working directory (the usual config convention) so loading keeps working
- * from bundled output.
+ * Returns `undefined` when no file exists for the list.
  */
 async function loadGroupingFile(
   preferenceList: readonly string[],
+  baseDir: string = process.cwd(),
 ): Promise<LoadedConfigFile | undefined> {
   for (const grouping of preferenceList) {
     for (const suffix of SUFFIXES) {
       for (const ext of EXTENSIONS) {
         const file = `${grouping}${suffix}${ext}`;
+        const filePath = resolve(baseDir, file);
+
+        if (ext === ".yaml" || ext === ".yml") {
+          if (existsSync(filePath)) {
+            try {
+              const text = readFileSync(filePath, "utf8");
+              const parsed = (parseYaml(text) ?? {}) as Record<string, unknown>;
+              return { grouping, file, config: parsed };
+            } catch (error) {
+              throw error;
+            }
+          }
+          continue;
+        }
 
         // Use a runtime-computed specifier so tooling/bundlers don't attempt to
         // resolve (and fail on) the optional fallbacks at build time.
-        const specifier = pathToFileURL(resolve(process.cwd(), file)).href;
+        const specifier = pathToFileURL(filePath).href;
 
         try {
-          const options = ext === ".json" ? { with: { type: "json" } } : undefined;
-          const mod = (await import(specifier, options)) as { default?: unknown };
+          const options = ext === ".json"
+            ? { with: { type: "json" } }
+            : undefined;
+          const mod = (await import(specifier, options)) as {
+            default?: unknown;
+          };
           if (mod.default === undefined) {
             throw new Error(`Config "${file}" must have a default export.`);
           }
-          return { grouping, file, config: mod.default as Record<string, unknown> };
+          return {
+            grouping,
+            file,
+            config: mod.default as Record<string, unknown>,
+          };
         } catch (error) {
+          if (ext === ".json" && existsSync(filePath)) {
+            try {
+              const text = readFileSync(filePath, "utf8");
+              const stripped = text
+                .replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1")
+                .replace(/,\s*([\]}])/g, "$1");
+              const parsed = JSON.parse(stripped) as Record<string, unknown>;
+              return { grouping, file, config: parsed };
+            } catch {
+              throw error;
+            }
+          }
           if (!isModuleNotFound(error)) {
             throw error;
           }
@@ -213,8 +350,9 @@ async function loadGroupingFile(
 /**
  * Load every grouping-preference list, returning the resolved file for each.
  *
- * A grouping file is imported at most once even when several lists fall back to
- * it, and a single file that satisfies multiple lists is reported only once.
+ * Tries global candidate directories specified in `mergeWithGlobal` (defaulting to
+ * `["~/.config", "~"]`) before loading local config, merging global configs with local
+ * config overrides.
  */
 export async function loadConfigFiles(
   preferences: Iterable<readonly string[]>,
@@ -223,10 +361,43 @@ export async function loadConfigFiles(
   const seen = new Set<string>();
   const out: LoadedConfigFile[] = [];
 
+  // 1. Load local config files for each preference list
+  const localMap = new Map<string, LoadedConfigFile | undefined>();
   for (const preferenceList of preferences) {
     const key = [...preferenceList].join(",");
-    const loaded = cache.get(key);
+    if (!localMap.has(key)) {
+      const localLoaded = await loadGroupingFile(preferenceList, process.cwd());
+      localMap.set(key, localLoaded);
+    }
+  }
+
+  // 2. Determine mergeWithGlobal setting from local configs, or fallback to default
+  let mergeWithGlobalList: string[] = DEFAULT_GLOBAL_CONFIG_DIRS;
+  for (const loaded of localMap.values()) {
+    if (loaded?.config) {
+      const cfgObj = loaded.config.config as
+        | { mergeWithGlobal?: unknown }
+        | undefined;
+      if (cfgObj && Array.isArray(cfgObj.mergeWithGlobal)) {
+        mergeWithGlobalList = cfgObj.mergeWithGlobal as string[];
+        break;
+      }
+    }
+  }
+
+  // 3. Resolve global directories in increasing precedence order
+  const cwdResolved = resolve(process.cwd());
+  const globalDirs = mergeWithGlobalList
+    .map((dir) => expandHomeDir(dir))
+    .filter((dir) => resolve(dir) !== cwdResolved);
+
+  const globalDirsOrdered = [...globalDirs].reverse();
+
+  // 4. Resolve each preference list, merging global configs and local config
+  for (const preferenceList of preferences) {
+    const key = [...preferenceList].join(",");
     if (cache.has(key)) {
+      const loaded = cache.get(key);
       if (loaded !== undefined && !seen.has(loaded.file)) {
         seen.add(loaded.file);
         out.push(loaded);
@@ -234,11 +405,48 @@ export async function loadConfigFiles(
       continue;
     }
 
-    const resolved = await loadGroupingFile(preferenceList);
-    cache.set(key, resolved);
-    if (resolved !== undefined && !seen.has(resolved.file)) {
-      seen.add(resolved.file);
-      out.push(resolved);
+    const localLoaded = localMap.get(key);
+
+    const globalConfigs: LoadedConfigFile[] = [];
+    for (const gDir of globalDirsOrdered) {
+      const gLoaded = await loadGroupingFile(preferenceList, gDir);
+      if (gLoaded) {
+        globalConfigs.push(gLoaded);
+      }
+    }
+
+    let mergedConfig: Record<string, unknown> | undefined;
+    let chosenGrouping: string | undefined;
+    let chosenFile: string | undefined;
+
+    for (const gLoaded of globalConfigs) {
+      mergedConfig = { ...mergedConfig, ...gLoaded.config };
+      chosenGrouping = gLoaded.grouping;
+      chosenFile = gLoaded.file;
+    }
+
+    if (localLoaded) {
+      mergedConfig = { ...mergedConfig, ...localLoaded.config };
+      chosenGrouping = localLoaded.grouping;
+      chosenFile = localLoaded.file;
+    }
+
+    let result: LoadedConfigFile | undefined;
+    if (
+      mergedConfig !== undefined && chosenGrouping !== undefined &&
+      chosenFile !== undefined
+    ) {
+      result = {
+        grouping: chosenGrouping,
+        file: chosenFile,
+        config: mergedConfig,
+      };
+    }
+
+    cache.set(key, result);
+    if (result !== undefined && !seen.has(result.file)) {
+      seen.add(result.file);
+      out.push(result);
     }
   }
 
@@ -253,7 +461,7 @@ export async function loadConfigFiles(
  * {@link defaultConfig}.
  */
 export async function loadAppConfig(
-  preferences: Iterable<readonly string[]>,
+  preferences: Iterable<readonly string[]> = configGroupPreferences,
 ): Promise<Record<string, unknown>> {
   const files = await loadConfigFiles(preferences);
 
@@ -262,9 +470,9 @@ export async function loadAppConfig(
       .flatMap((list) =>
         list.flatMap((grouping) =>
           SUFFIXES.flatMap((suffix) =>
-            EXTENSIONS.map((ext) => `${grouping}${suffix}${ext}`),
-          ),
-        ),
+            EXTENSIONS.map((ext) => `${grouping}${suffix}${ext}`)
+          )
+        )
       )
       .join(", ");
     throw new Error(`Unable to load application config. Looked for: ${looked}`);
@@ -295,7 +503,15 @@ export async function loadAppConfig(
  * used to locate config files, so adding a config module only requires adding
  * it here.
  */
-export const configSchemas = [AppNameConfig, AppKeyConfig, DatabaseUrlConfig];
+export const configSchemas = [
+  ConfigConfig,
+  PackageConfig,
+  TsconfigConfig,
+  DenoConfig,
+  ContainerComposeConfig,
+  KubeConfig,
+  ContainerConfig,
+];
 
 /**
  * Config schemas split into one entry per grouping-preference list via
@@ -311,7 +527,7 @@ export const configGroups = Map.groupBy(
 if (configGroups.size === 0) {
   throw new Error(
     "No config grouping registered; register config schemas with a `grouping` " +
-      "so the loader can locate `<grouping>.config.{ts,js,json}` or `<grouping>.{ts,js,json}`.",
+      "so the loader can locate `<grouping>.config.{ts,js,json,yaml,yml}` or `<grouping>.{ts,js,json,yaml,yml}`.",
   );
 }
 
@@ -350,10 +566,14 @@ export function defineConfigFor(grouping: string): DefineConfig {
  * `app.config.ts` can safely import `defineConfig` from here without creating
  * an import cycle.
  */
-export const ConfigObject = Schema.object({
-  ...AppNameConfig.shape,
-  ...AppKeyConfig.shape,
-  ...DatabaseUrlConfig.shape,
+export const ConfigObject: Schema.ZodObject<any> = Schema.object({
+  ...ConfigConfig.shape,
+  ...PackageConfig.shape,
+  ...TsconfigConfig.shape,
+  ...DenoConfig.shape,
+  ...ContainerComposeConfig.shape,
+  ...KubeConfig.shape,
+  ...ContainerConfig.shape,
 });
 
 /**
@@ -397,7 +617,16 @@ export interface Config {
   groupValues: Record<string, Record<string, unknown>>;
 
   /**
+   * Record of globally scoped configuration key-value pairs, used as a
+   * fallback for every group when no group-local value exists.
+   */
+  globalValues: Record<string, unknown>;
+
+  /**
    * Get a configuration value by key, or by group and config key.
+   *
+   * With a group, the lookup order is: the group's local value, then the
+   * global value, then the flat {@link Config.values} record.
    *
    * @param key Config key name when single argument, or group name when keyInGroup provided.
    * @param keyInGroup Optional config key name when first argument is group name.
@@ -411,15 +640,25 @@ export interface Config {
    * @param group The configuration group (e.g. "app", "database", "package").
    * @param key The configuration key.
    * @param value The value to set.
+   * @param options Optional settings; `options.scope` selects `"local"`
+   *   (default, stored under `group`) or `"global"` (stored as a fallback for
+   *   every group).
    */
-  set<T = unknown>(group: string, key: string, value: T): void;
+  set<T = unknown>(
+    group: string,
+    key: string,
+    value: T,
+    options?: SetConfigOptions,
+  ): void;
 
   /**
    * Load configurations from candidates based on grouping preferences.
    *
    * @param preferences Grouping preference lists.
    */
-  load(preferences?: Iterable<readonly string[]>): Promise<Record<string, unknown>>;
+  load(
+    preferences?: Iterable<readonly string[]>,
+  ): Promise<Record<string, unknown>>;
 }
 
 /**
@@ -428,10 +667,18 @@ export interface Config {
 export class ConfigManager implements Config {
   public values: Record<string, unknown> = {};
   public groupValues: Record<string, Record<string, unknown>> = {};
+  public globalValues: Record<string, unknown> = {};
 
-  constructor(initialValues?: Record<string, unknown>, groupFiles?: LoadedConfigFile[]) {
+  constructor(
+    initialValues?: Record<string, unknown>,
+    groupFiles?: LoadedConfigFile[],
+    globalValues?: Record<string, unknown>,
+  ) {
     if (initialValues) {
       this.values = { ...initialValues };
+    }
+    if (globalValues) {
+      this.globalValues = { ...globalValues };
     }
     if (groupFiles) {
       for (const { grouping, config } of groupFiles) {
@@ -449,19 +696,37 @@ export class ConfigManager implements Config {
       if (groupObj && keyInGroup in groupObj) {
         return groupObj[keyInGroup] as T;
       }
+      if (keyInGroup in this.globalValues) {
+        return this.globalValues[keyInGroup] as T;
+      }
       return this.values[keyInGroup] as T | undefined;
     }
-    return this.values[groupOrKey] as T | undefined;
+    if (groupOrKey in this.values) {
+      return this.values[groupOrKey] as T | undefined;
+    }
+    return this.globalValues[groupOrKey] as T | undefined;
   }
 
-  set<T = unknown>(group: string, key: string, value: T): void {
+  set<T = unknown>(
+    group: string,
+    key: string,
+    value: T,
+    options: SetConfigOptions = {},
+  ): void {
+    const scope = options.scope ?? DEFAULT_CONFIG_SCOPE;
     if (!this.groupValues[group]) {
       this.groupValues[group] = {};
     }
-    if (key !== "") {
-      this.groupValues[group][key] = value;
-      this.values[key] = value;
+    if (key === "") {
+      return;
     }
+    if (scope === "global") {
+      this.globalValues[key] = value;
+      writeGlobalConfigValue(group, key, value);
+      return;
+    }
+    this.groupValues[group][key] = value;
+    this.values[key] = value;
   }
 
   async load(
@@ -479,8 +744,14 @@ export const defaultConfig: Config = new ConfigManager();
  * Get a configuration value by key, or by group and config key.
  */
 export function getConfig<T = unknown>(key: string): T | undefined;
-export function getConfig<T = unknown>(group: string, key: string): T | undefined;
-export function getConfig<T = unknown>(groupOrKey: string, keyInGroup?: string): T | undefined {
+export function getConfig<T = unknown>(
+  group: string,
+  key: string,
+): T | undefined;
+export function getConfig<T = unknown>(
+  groupOrKey: string,
+  keyInGroup?: string,
+): T | undefined {
   return defaultConfig.get<T>(groupOrKey, keyInGroup!);
 }
 
@@ -490,7 +761,22 @@ export function getConfig<T = unknown>(groupOrKey: string, keyInGroup?: string):
  * @param group The configuration group (e.g. "app", "database", "package").
  * @param key The configuration key.
  * @param value The value to set.
+ * @param options Optional settings, defaulting to `{ scope: "local" }`. Pass
+ *   `{ scope: "global" }` to store the value as a fallback for every group
+ *   instead of only under `group`; global values are also persisted to the
+ *   grouping's global config file in the first existing `mergeWithGlobal`
+ *   directory (e.g. `~/.config/package.config.json`).
+ *
+ * ```ts
+ * setConfig("package", "name", "my-package");                       // local
+ * setConfig("package", "license", "MIT", { scope: "global" });      // global
+ * ```
  */
-export function setConfig<T = unknown>(group: string, key: string, value: T): void {
-  defaultConfig.set(group, key, value);
+export function setConfig<T = unknown>(
+  group: string,
+  key: string,
+  value: T,
+  options: SetConfigOptions = {},
+): void {
+  defaultConfig.set(group, key, value, options);
 }

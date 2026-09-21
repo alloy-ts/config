@@ -11,3 +11,6 @@ node_modules
 # log files
 logs
 *.log
+
+# configs
+tsconfig.json

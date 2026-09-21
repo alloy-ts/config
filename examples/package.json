@@ -1,0 +1,20 @@
+{
+  "name": "examples",
+  "type": "module",
+  "scripts": {
+    "prepare": "node node_modules/@alloy-ts/config/scripts/codegen.mjs",
+    "start": "node src/main.ts",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@alloy-ts/config": "file:.."
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "private": true,
+  "module": "index.ts"
+}

@@ -1,4 +1,6 @@
-{
+import { defineTypeScriptConfig } from "./src/config.ts";
+
+export default defineTypeScriptConfig({
   "compilerOptions": {
     // Environment setup & latest features
     "lib": ["ESNext"],
@@ -21,7 +23,7 @@
 
     // Path aliases
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
     },
 
     // Best practices
@@ -35,6 +37,6 @@
     // Some stricter flags
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noPropertyAccessFromIndexSignature": true
-  }
-}
+    "noPropertyAccessFromIndexSignature": true,
+  },
+});

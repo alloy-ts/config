@@ -1,36 +1,35 @@
-{
+import { definePackageConfig } from "./src/config.ts";
+
+export default definePackageConfig({
   "name": "@alloy-ts/config",
   "version": "0.0.0",
-  "files": [
-    "dist",
-    "scripts"
-  ],
+  "type": "module",
+  "bin": {
+    "config-codegen": "./scripts/codegen.mjs",
+  },
   "exports": {
     ".": "./dist/main.mjs",
-    "./package.json": "./package.json"
+    "./scripts/*": "./scripts/*",
+    "./package.json": "./package.json",
   },
-  "bin": {
-    "config-codegen": "./scripts/codegen.mjs"
-  },
-  "type": "module",
+  "files": ["dist", "scripts"],
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
     "prepare": "node scripts/codegen.mjs",
     "start": "node src/main.ts",
-    "test": "node --test"
+    "test": "node --test",
   },
   "dependencies": {
-    "@types/which": "^3.0.4",
     "which": "^6.0.1",
     "yaml": "^2.7.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
-    "tsdown": "^0.23.0"
+    "tsdown": "^0.23.0",
   },
   "peerDependencies": {
-    "typescript": "^7.0.2"
-  }
-}
+    "typescript": "^7.0.2",
+  },
+});

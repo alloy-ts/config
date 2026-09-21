@@ -1,15 +1,5 @@
-/**
- * Build-time config check with per-file diagnostics.
- *
- * Runs the same resolution + validation the app does at load time, but as part
- * of the build, so an incomplete or invalid config fails `npm run build` instead
- * of the running app. Each resolved config file is checked against the keys its
- * grouping owns, so a missing or mistyped key is attributed to the specific file
- * rather than just reported against the merged object.
- *
- * Wired into tsdown's `build:prepare` hook (see tsdown.config.ts); can also be
- * run directly: `node scripts/check-config.mjs`.
- */
+#!/usr/bin/env node
+
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as Schema from "zod";
@@ -51,7 +41,7 @@ const files = await loadConfigFiles(configGroupPreferences);
 if (files.length === 0) {
   const looked = configGroupPreferences
     .flatMap((list) =>
-      list.flatMap((g) => [`${g}.config.{ts,js,json}`, `${g}.{ts,js,json}`]),
+      list.flatMap((g) => [`${g}.config.{ts,js,json}`, `${g}.{ts,js,json}`])
     )
     .join(", ");
   console.error("✘ no application config file found. Looked for:", looked);
@@ -66,7 +56,9 @@ for (const { grouping, file, config } of files) {
   if (!result.success) {
     for (const issue of result.error.issues) {
       const where = issue.path.length ? issue.path.join(".") : "(root)";
-      errors.push(`  ${file} [grouping:${grouping}]: ${where} — ${issue.message}`);
+      errors.push(
+        `  ${file} [grouping:${grouping}]: ${where} — ${issue.message}`,
+      );
     }
   }
 }
