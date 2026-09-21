@@ -1,16 +1,15 @@
-{
+import { definePackageConfig } from "./src/config.ts"
+
+export default definePackageConfig({
   "name": "@alloy-ts/config",
   "version": "0.0.0",
-  "files": [
-    "dist",
-    "scripts"
-  ],
+  "type": "module",
   "exports": {
     ".": "./dist/main.mjs",
     "./scripts/*": "./scripts/*",
     "./package.json": "./package.json"
   },
-  "type": "module",
+  "files": ["dist","scripts"],
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
@@ -27,5 +26,5 @@
   },
   "peerDependencies": {
     "typescript": "^7.0.2"
-  }
-}
+  },
+});

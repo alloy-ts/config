@@ -1,10 +1,22 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { readFileSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
 import * as Schema from "zod";
 import { groupingsOf } from "./models/registries.ts";
-import { AppKeyConfig } from "./models/config/app-key.ts";
-import { AppNameConfig } from "./models/config/app-name.ts";
-import { DatabaseUrlConfig } from "./models/config/database-url.ts";
+import {
+  ConfigConfig,
+  DEFAULT_MERGE_WITH_GLOBAL,
+  DEFAULT_CODEGEN,
+} from "./models/config/std.ts";
+import { PackageConfig } from "./models/config/package.ts";
+import { TsconfigConfig } from "./models/config/tsconfig.ts";
+import { DenoConfig } from "./models/config/deno.ts";
+
+export { definePackageConfig } from "./models/config/package.ts";
+export { defineTypeScriptConfig } from "./models/config/tsconfig.ts";
+export { defineDenoConfig } from "./models/config/deno.ts";
+export { DEFAULT_CODEGEN, DEFAULT_MERGE_WITH_GLOBAL } from "./models/config/std.ts";
 
 /* -------------------------------------------------------------------------- */
 /*                                Types & Helpers                             */
@@ -150,6 +162,19 @@ const SUFFIXES = [".config", ""] as const;
 const EXTENSIONS = [".ts", ".js", ".json"] as const;
 
 /**
+ * Helper to expand ~ to home directory.
+ */
+export function expandHomeDir(pathStr: string): string {
+  if (pathStr === "~") {
+    return homedir();
+  }
+  if (pathStr.startsWith("~/") || pathStr.startsWith("~\\")) {
+    return resolve(homedir(), pathStr.slice(2));
+  }
+  return resolve(process.cwd(), pathStr);
+}
+
+/**
  * `ERR_MODULE_NOT_FOUND` is raised when the candidate file does not exist.
  * Only that case should trigger a fallback; genuine config/validation errors
  * must propagate.
@@ -158,7 +183,8 @@ const isModuleNotFound = (error: unknown): boolean =>
   typeof error === "object" &&
   error !== null &&
   "code" in error &&
-  (error as { code?: unknown }).code === "ERR_MODULE_NOT_FOUND";
+  ((error as { code?: unknown }).code === "ERR_MODULE_NOT_FOUND" ||
+   (error as { code?: unknown }).code === "ENOENT");
 
 /** A single resolved config file: which grouping it satisfied and its content. */
 export interface LoadedConfigFile {
@@ -171,25 +197,25 @@ export interface LoadedConfigFile {
 }
 
 /**
- * Resolve and load the config file for one grouping-preference list.
+ * Resolve and load the config file for one grouping-preference list from baseDir.
  *
  * Each list is a fallback chain: its groupings are tried in order and the first
  * one with an existing `<grouping>.config.*` or `<grouping>.*` file wins.
- * Returns `undefined` when no file exists for the list. Files are resolved relative to
- * the current working directory (the usual config convention) so loading keeps working
- * from bundled output.
+ * Returns `undefined` when no file exists for the list.
  */
 async function loadGroupingFile(
   preferenceList: readonly string[],
+  baseDir: string = process.cwd(),
 ): Promise<LoadedConfigFile | undefined> {
   for (const grouping of preferenceList) {
     for (const suffix of SUFFIXES) {
       for (const ext of EXTENSIONS) {
         const file = `${grouping}${suffix}${ext}`;
+        const filePath = resolve(baseDir, file);
 
         // Use a runtime-computed specifier so tooling/bundlers don't attempt to
         // resolve (and fail on) the optional fallbacks at build time.
-        const specifier = pathToFileURL(resolve(process.cwd(), file)).href;
+        const specifier = pathToFileURL(filePath).href;
 
         try {
           const options = ext === ".json" ? { with: { type: "json" } } : undefined;
@@ -199,6 +225,18 @@ async function loadGroupingFile(
           }
           return { grouping, file, config: mod.default as Record<string, unknown> };
         } catch (error) {
+          if (ext === ".json" && existsSync(filePath)) {
+            try {
+              const text = readFileSync(filePath, "utf8");
+              const stripped = text
+                .replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1")
+                .replace(/,\s*([\]}])/g, "$1");
+              const parsed = JSON.parse(stripped) as Record<string, unknown>;
+              return { grouping, file, config: parsed };
+            } catch {
+              throw error;
+            }
+          }
           if (!isModuleNotFound(error)) {
             throw error;
           }
@@ -213,8 +251,9 @@ async function loadGroupingFile(
 /**
  * Load every grouping-preference list, returning the resolved file for each.
  *
- * A grouping file is imported at most once even when several lists fall back to
- * it, and a single file that satisfies multiple lists is reported only once.
+ * Tries global candidate directories specified in `mergeWithGlobal` (defaulting to
+ * `["~/.config", "~"]`) before loading local config, merging global configs with local
+ * config overrides.
  */
 export async function loadConfigFiles(
   preferences: Iterable<readonly string[]>,
@@ -223,10 +262,41 @@ export async function loadConfigFiles(
   const seen = new Set<string>();
   const out: LoadedConfigFile[] = [];
 
+  // 1. Load local config files for each preference list
+  const localMap = new Map<string, LoadedConfigFile | undefined>();
   for (const preferenceList of preferences) {
     const key = [...preferenceList].join(",");
-    const loaded = cache.get(key);
+    if (!localMap.has(key)) {
+      const localLoaded = await loadGroupingFile(preferenceList, process.cwd());
+      localMap.set(key, localLoaded);
+    }
+  }
+
+  // 2. Determine mergeWithGlobal setting from local configs, or fallback to default
+  let mergeWithGlobalList: string[] = DEFAULT_MERGE_WITH_GLOBAL;
+  for (const loaded of localMap.values()) {
+    if (loaded?.config) {
+      const cfgObj = loaded.config.config as { mergeWithGlobal?: unknown } | undefined;
+      if (cfgObj && Array.isArray(cfgObj.mergeWithGlobal)) {
+        mergeWithGlobalList = cfgObj.mergeWithGlobal as string[];
+        break;
+      }
+    }
+  }
+
+  // 3. Resolve global directories in increasing precedence order
+  const cwdResolved = resolve(process.cwd());
+  const globalDirs = mergeWithGlobalList
+    .map((dir) => expandHomeDir(dir))
+    .filter((dir) => resolve(dir) !== cwdResolved);
+
+  const globalDirsOrdered = [...globalDirs].reverse();
+
+  // 4. Resolve each preference list, merging global configs and local config
+  for (const preferenceList of preferences) {
+    const key = [...preferenceList].join(",");
     if (cache.has(key)) {
+      const loaded = cache.get(key);
       if (loaded !== undefined && !seen.has(loaded.file)) {
         seen.add(loaded.file);
         out.push(loaded);
@@ -234,11 +304,45 @@ export async function loadConfigFiles(
       continue;
     }
 
-    const resolved = await loadGroupingFile(preferenceList);
-    cache.set(key, resolved);
-    if (resolved !== undefined && !seen.has(resolved.file)) {
-      seen.add(resolved.file);
-      out.push(resolved);
+    const localLoaded = localMap.get(key);
+
+    const globalConfigs: LoadedConfigFile[] = [];
+    for (const gDir of globalDirsOrdered) {
+      const gLoaded = await loadGroupingFile(preferenceList, gDir);
+      if (gLoaded) {
+        globalConfigs.push(gLoaded);
+      }
+    }
+
+    let mergedConfig: Record<string, unknown> | undefined;
+    let chosenGrouping: string | undefined;
+    let chosenFile: string | undefined;
+
+    for (const gLoaded of globalConfigs) {
+      mergedConfig = { ...mergedConfig, ...gLoaded.config };
+      chosenGrouping = gLoaded.grouping;
+      chosenFile = gLoaded.file;
+    }
+
+    if (localLoaded) {
+      mergedConfig = { ...mergedConfig, ...localLoaded.config };
+      chosenGrouping = localLoaded.grouping;
+      chosenFile = localLoaded.file;
+    }
+
+    let result: LoadedConfigFile | undefined;
+    if (mergedConfig !== undefined && chosenGrouping !== undefined && chosenFile !== undefined) {
+      result = {
+        grouping: chosenGrouping,
+        file: chosenFile,
+        config: mergedConfig,
+      };
+    }
+
+    cache.set(key, result);
+    if (result !== undefined && !seen.has(result.file)) {
+      seen.add(result.file);
+      out.push(result);
     }
   }
 
@@ -253,7 +357,7 @@ export async function loadConfigFiles(
  * {@link defaultConfig}.
  */
 export async function loadAppConfig(
-  preferences: Iterable<readonly string[]>,
+  preferences: Iterable<readonly string[]> = configGroupPreferences,
 ): Promise<Record<string, unknown>> {
   const files = await loadConfigFiles(preferences);
 
@@ -295,7 +399,12 @@ export async function loadAppConfig(
  * used to locate config files, so adding a config module only requires adding
  * it here.
  */
-export const configSchemas = [AppNameConfig, AppKeyConfig, DatabaseUrlConfig];
+export const configSchemas = [
+  ConfigConfig,
+  PackageConfig,
+  TsconfigConfig,
+  DenoConfig,
+];
 
 /**
  * Config schemas split into one entry per grouping-preference list via
@@ -351,9 +460,10 @@ export function defineConfigFor(grouping: string): DefineConfig {
  * an import cycle.
  */
 export const ConfigObject = Schema.object({
-  ...AppNameConfig.shape,
-  ...AppKeyConfig.shape,
-  ...DatabaseUrlConfig.shape,
+  ...ConfigConfig.shape,
+  ...PackageConfig.shape,
+  ...TsconfigConfig.shape,
+  ...DenoConfig.shape,
 });
 
 /**

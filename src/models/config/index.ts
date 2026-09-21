@@ -9,21 +9,27 @@ import {
   loadAppConfig,
 } from "../../config.ts";
 
-/**
- * The loaded and validated application config.
- *
- * Each preference list in {@link configGroupPreferences} resolves the first
- * existing `<grouping>.config.{ts,js,json}` or `<grouping>.{ts,js,json}` file;
- * all resolved files are merged and then validated against the combined schema.
- */
-const configs = Configs.parse(await loadAppConfig(configGroupPreferences));
+export * from "./std.ts";
+export * from "./package.ts";
+export * from "./tsconfig.ts";
+export * from "./deno.ts";
+
+type AppConfig = Awaited<ReturnType<typeof loadAppConfig>>;
+let _configs: AppConfig | undefined;
+let _configsLoaded = false;
+export async function getConfigs(): Promise<AppConfig> {
+  if (!_configsLoaded) {
+    _configs = Configs.parse(await loadAppConfig(configGroupPreferences));
+    _configsLoaded = true;
+  }
+  return _configs;
+}
 
 export {
   configGroupPreferences,
   configGroups,
   ConfigObject,
   Configs,
-  configs,
   defineConfig,
   defineConfigFor,
   defineConfigs,

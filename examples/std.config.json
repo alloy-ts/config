@@ -1,0 +1,5 @@
+{
+  "codegen": [
+    { "in": "package.config.ts", "out": "package.manifest.json" }
+  ]
+}

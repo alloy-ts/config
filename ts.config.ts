@@ -1,4 +1,6 @@
-{
+import { defineTypeScriptConfig } from "./src/config.ts";
+
+export default defineTypeScriptConfig({
   "compilerOptions": {
     // Environment setup & latest features
     "lib": ["ESNext"],
@@ -38,3 +40,4 @@
     "noPropertyAccessFromIndexSignature": true
   }
 }
+);
