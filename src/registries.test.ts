@@ -12,13 +12,14 @@ test("configFieldRegistry registers schema metadata and is iterable", () => {
   });
 
   const metadata = configFieldRegistry.get(schema);
-  expect(metadata).toEqual({
+  expect(metadata).toMatchObject({
     urn: "urn:test:foo",
     key: "foo",
     groupId: "test-group",
     title: "Foo Field",
     description: "A test foo field",
   });
+  expect(metadata?.moduleUrl).toBe(import.meta.url);
 
   // Test iterable
   const fields = Array.from(configFieldRegistry as any);
@@ -47,7 +48,7 @@ test("configGroupRegistry registers group metadata and is iterable", () => {
   });
 
   const metadata = configGroupRegistry.get(groupSchema);
-  expect(metadata).toEqual({
+  expect(metadata).toMatchObject({
     urn: "urn:test:group",
     id: "test-group-id",
     title: "Test Group",
@@ -57,6 +58,7 @@ test("configGroupRegistry registers group metadata and is iterable", () => {
       system: "/etc/testrc",
     },
   });
+  expect(metadata?.moduleUrl).toBe(import.meta.url);
 
   // Test iterable
   const groups = Array.from(configGroupRegistry as any);

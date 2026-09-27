@@ -1,4 +1,18 @@
-import { registry, type ZodType, object } from "zod";
+import { object } from "zod";
+import { registry, resolveCallerModuleUrl, SCHEMA_MODULE_URL } from "./schema.ts";
+
+/**
+ * Auto-defaults `moduleUrl` on registration metadata by resolving the caller's
+ * module URL from the stack. This backs both `Schema.config(...).meta({...})`
+ * and the zod-native `schema.register(registry, {...})` paths, so call sites no
+ * longer need to repeat `moduleUrl: import.meta.url`.
+ */
+function injectModuleUrl(meta: any): any {
+  if (!meta || typeof meta !== "object" || meta.moduleUrl) return meta;
+  const url = resolveCallerModuleUrl({ skip: [SCHEMA_MODULE_URL, import.meta.url] });
+  if (url) meta.moduleUrl = url;
+  return meta;
+}
 
 /** Metadata base for all registries. */
 export type MetadataBase = {
@@ -29,7 +43,7 @@ export type MetadataConfigGroup = {
  * Configuration field registry.
  * Configuration fields are key-value pairs within a {@link ZodType}.
  */
-export const configFieldRegistry = registry<MetadataConfigField, ZodType<any>>();
+export const configFieldRegistry = registry<MetadataConfigField, any>();
 
 export const configFieldReg = configFieldRegistry;
 
@@ -37,7 +51,7 @@ export const configFieldReg = configFieldRegistry;
  * Configuration group registry.
  * Configuration groups are collections of configuration fields sharing the same grouping.
  */
-export const configGroupRegistry = registry<MetadataConfigGroup, ZodType<any>>();
+export const configGroupRegistry = registry<MetadataConfigGroup, any>();
 
 export const configGroupReg = configGroupRegistry;
 
@@ -48,20 +62,9 @@ export const fieldsByGroupIdMap = new Map<
 >();
 export const registeredGroupsMap = new Map<string, { schema: any; meta: MetadataConfigGroup }>();
 
-// Make configFieldRegistry iterable
-(configFieldRegistry as any)[Symbol.iterator] = function* () {
-  for (const groupFields of fieldsByGroupIdMap.values()) {
-    yield* groupFields.values();
-  }
-};
-
-// Make configGroupRegistry iterable
-(configGroupRegistry as any)[Symbol.iterator] = function* () {
-  yield* registeredGroupsMap.values();
-};
-
 const origFieldAdd = configFieldRegistry.add.bind(configFieldRegistry);
 configFieldRegistry.add = function (schema: any, meta: any) {
+  meta = injectModuleUrl(meta);
   if (meta && typeof meta === "object" && meta.groupId && meta.key) {
     registeredFieldsMap.set(`${meta.groupId}:${meta.key}`, meta);
 
@@ -88,7 +91,7 @@ export function getFieldsForGroupId(
 /**
  * Dynamically builds a Zod object schema for a group ID from all registered fields in configFieldRegistry.
  */
-export function buildGroupSchemaFromFields(groupId: string): ZodType<any> {
+export function buildGroupSchemaFromFields(groupId: string): any {
   const fields = getFieldsForGroupId(groupId);
   const shape: Record<string, any> = {};
 
@@ -123,6 +126,7 @@ export function validateGroupFields(groupSchema: any, groupId: string) {
 
 const origGroupAdd = configGroupRegistry.add.bind(configGroupRegistry);
 configGroupRegistry.add = function (schema: any, meta: any) {
+  meta = injectModuleUrl(meta);
   if (meta && typeof meta === "object" && meta.id) {
     if (schema) {
       validateGroupFields(schema, meta.id);
