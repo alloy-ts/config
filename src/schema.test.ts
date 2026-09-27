@@ -49,19 +49,15 @@ test("Schema.config supports integer/number positive().meta()", () => {
   expect(configFieldRegistry.get(positiveInt)?.key).toBe("positiveInt");
 });
 
-test("Schema.configGroup registers group schema into configGroupRegistry using .meta()", () => {
-  const ageField = Schema.config(Schema.number()).meta({
+test("Schema.configGroup registers group schema into configGroupRegistry without passing field schemas", () => {
+  Schema.config(Schema.number()).meta({
     urn: "urn:test:field:age",
     key: "age",
     groupId: "user-config",
     title: "Age Field",
   });
 
-  const userGroup = Schema.configGroup(
-    Schema.object({
-      age: ageField.optional(),
-    }).readonly(),
-  ).meta({
+  const userGroup = Schema.configGroup().meta({
     urn: "urn:test:group:user",
     id: "user-config",
     title: "User Config",
@@ -73,4 +69,8 @@ test("Schema.configGroup registers group schema into configGroupRegistry using .
     id: "user-config",
     title: "User Config",
   });
+
+  // Verify group schema auto-built from fields parses valid input
+  const parsed = userGroup.parse({ age: 25 });
+  expect(parsed.age).toBe(25);
 });

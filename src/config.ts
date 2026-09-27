@@ -1,7 +1,6 @@
-import { type ZodType } from "zod";
-import * as Schema from "./schema.ts";
 import {
-  configGroupRegistry,
+  buildGroupSchemaFromFields,
+  getFieldsForGroupId,
   isFieldRegistered,
   registeredGroupsMap,
   type MetadataConfigGroup,
@@ -47,26 +46,10 @@ function normalizeIdentifier(str: string): string {
 }
 
 /**
- * Resolves a group entry from registered groups by schema or string identifier (id, urn, or normalized name).
+ * Resolves a group entry from registered groups by string identifier (id, urn, or normalized name).
  */
-export function resolveGroup(schemaOrGroupId: ZodType<any> | string): {
-  schema: any;
-  meta: MetadataConfigGroup;
-} {
-  if (typeof schemaOrGroupId !== "string") {
-    const meta = configGroupRegistry.get(schemaOrGroupId as any);
-    if (meta) {
-      return { schema: schemaOrGroupId, meta };
-    }
-    for (const entry of registeredGroupsMap.values()) {
-      if (entry.schema === schemaOrGroupId) {
-        return entry;
-      }
-    }
-    throw new Error("Specified config group schema is not registered in configGroupRegistry.");
-  }
-
-  const query = schemaOrGroupId.trim();
+export function resolveGroup(groupIdentifier: string): { schema: any; meta: MetadataConfigGroup } {
+  const query = groupIdentifier.trim();
   const normalizedQuery = normalizeIdentifier(query);
 
   for (const entry of registeredGroupsMap.values()) {
@@ -77,11 +60,23 @@ export function resolveGroup(schemaOrGroupId: ZodType<any> | string): {
       normalizeIdentifier(meta.urn) === normalizedQuery ||
       normalizeIdentifier(meta.id) === normalizedQuery
     ) {
-      return entry;
+      const groupSchema = entry.schema || buildGroupSchemaFromFields(meta.id);
+      return { schema: groupSchema, meta };
     }
   }
 
-  throw new Error(`Config group "${schemaOrGroupId}" not found in registry.`);
+  // Check if fields exist for this groupId directly
+  const fields = getFieldsForGroupId(query);
+  if (fields.size > 0) {
+    const meta: MetadataConfigGroup = {
+      id: query,
+      urn: query,
+    };
+    const groupSchema = buildGroupSchemaFromFields(query);
+    return { schema: groupSchema, meta };
+  }
+
+  throw new Error(`Config group "${groupIdentifier}" not found in registry.`);
 }
 
 /**
@@ -123,14 +118,12 @@ export function parseConfigKey(fullKey: string): {
 }
 
 /**
- * Creates a strongly-typed `defineConfig` function for a config group schema or group ID string.
+ * Creates a strongly-typed `defineConfig` function for a config group ID string.
  */
-export function createDefineConfig<T extends ZodType<any> = any>(
-  schemaOrGroupId: T | string,
-): (config: Schema.input<T>) => Schema.output<T> {
-  const { schema } = resolveGroup(schemaOrGroupId as any);
+export function createDefineConfig(groupId: string): (config: any) => any {
+  const { schema } = resolveGroup(groupId);
 
-  return function defineConfig(configValue: Schema.input<T>): Schema.output<T> {
+  return function defineConfig(configValue: any): any {
     return schema.parse(configValue);
   };
 }
@@ -142,7 +135,7 @@ export class ConfigGroupResolver {
   public readonly groupMeta: MetadataConfigGroup;
   public readonly groupSchema: any;
 
-  constructor(groupIdentifier: string | ZodType<any>) {
+  constructor(groupIdentifier: string) {
     const { meta, schema } = resolveGroup(groupIdentifier);
     this.groupMeta = meta;
     this.groupSchema = schema;

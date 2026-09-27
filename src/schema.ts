@@ -1,22 +1,27 @@
 import { type ZodType } from "zod";
 import {
+  buildGroupSchemaFromFields,
   configFieldRegistry,
   configGroupRegistry,
   type MetadataConfigField,
-  type MetadataConfigGroup,
 } from "./registries.ts";
 
 export * from "zod";
 
 function createConfigProxy<T extends ZodType<any>, M>(
-  schema: T,
+  schema: T | undefined,
   registry: any,
   initialMeta?: M,
-): T & { meta: (m: M) => T } {
-  let currentSchema = schema;
+): any {
+  let currentSchema: any = schema;
 
-  if (initialMeta && currentSchema) {
-    registry.add(currentSchema, initialMeta);
+  if (initialMeta) {
+    if (!currentSchema && (initialMeta as any).id) {
+      currentSchema = buildGroupSchemaFromFields((initialMeta as any).id);
+    }
+    if (currentSchema) {
+      registry.add(currentSchema, initialMeta);
+    }
   }
 
   const dummyTarget = function () {};
@@ -25,10 +30,25 @@ function createConfigProxy<T extends ZodType<any>, M>(
     get(_target, prop, _receiver) {
       if (prop === "meta") {
         return (meta: M) => {
-          registry.add(currentSchema, meta);
-          registry.add(proxy, meta);
+          if (!currentSchema && (meta as any).id) {
+            currentSchema = buildGroupSchemaFromFields((meta as any).id);
+          }
+          if (currentSchema) {
+            registry.add(currentSchema, meta);
+            registry.add(proxy, meta);
+          }
           return proxy;
         };
+      }
+
+      if (!currentSchema && prop === "parse") {
+        return function (_input: any) {
+          throw new Error("Config schema is not initialized or registered with metadata.");
+        };
+      }
+
+      if (!currentSchema) {
+        return undefined;
       }
 
       const val = Reflect.get(currentSchema, prop, currentSchema);
@@ -47,7 +67,7 @@ function createConfigProxy<T extends ZodType<any>, M>(
   };
 
   const proxy = new Proxy(dummyTarget, handler);
-  if (initialMeta) {
+  if (initialMeta && currentSchema) {
     registry.add(proxy, initialMeta);
   }
   return proxy as any;
@@ -73,5 +93,22 @@ export const config = createConfigWrapper<MetadataConfigField>(configFieldRegist
 
 /**
  * Proxy for registering a configuration group schema into `configGroupRegistry`.
+ * Does not require passing individual field schemas in Schema.object({...}).
  */
-export const configGroup = createConfigWrapper<MetadataConfigGroup>(configGroupRegistry);
+export const configGroup = new Proxy(
+  function (arg1?: any, arg2?: any) {
+    if (arg1 && typeof arg1 === "object" && (arg1.id || arg1.urn)) {
+      return createConfigProxy(undefined, configGroupRegistry, arg1);
+    }
+    return createConfigProxy(arg1, configGroupRegistry, arg2);
+  },
+  {
+    apply(_target, _thisArg, argArray: [any?, any?]) {
+      const [arg1, arg2] = argArray;
+      if (arg1 && typeof arg1 === "object" && (arg1.id || arg1.urn)) {
+        return createConfigProxy(undefined, configGroupRegistry, arg1);
+      }
+      return createConfigProxy(arg1, configGroupRegistry, arg2);
+    },
+  },
+) as any;

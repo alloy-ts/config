@@ -1,16 +1,16 @@
 import { expect, test } from "vite-plus/test";
 import { Config, createDefineConfig } from "./config.ts";
-import { npmPackageSchema } from "./config/npm-package.ts";
+import "./config/npm-package.ts";
 import * as Schema from "./schema.ts";
 
-test("Config.createDefine works with groupId string and config group schema", () => {
+test("Config.createDefine and createDefineConfig work with groupId string", () => {
   const defineConfigFromGroupId = Config.createDefine("config.npmPackage");
   const res1 = defineConfigFromGroupId({ name: "my-app", version: "1.0.0" });
   expect(res1.name).toBe("my-app");
   expect(res1.version).toBe("1.0.0");
 
-  const defineConfigFromSchema = createDefineConfig(npmPackageSchema);
-  const res2 = defineConfigFromSchema({ name: "my-lib" });
+  const defineConfigFromShortGroupId = createDefineConfig("npm-package-json");
+  const res2 = defineConfigFromShortGroupId({ name: "my-lib" });
   expect(res2.name).toBe("my-lib");
 });
 
@@ -43,17 +43,13 @@ test("Global Config.get and Config.set with full URN, with and without config. p
 
 test("Scope resolution and scope stores (local, user, system)", () => {
   // Register a custom test group
-  const hostField = Schema.config(Schema.string()).meta({
+  Schema.config(Schema.string()).meta({
     urn: "urn:config.appServer:host",
     key: "host",
     groupId: "app-server",
   });
 
-  Schema.configGroup(
-    Schema.object({
-      host: hostField,
-    }),
-  ).meta({
+  Schema.configGroup().meta({
     urn: "urn:config.appServer",
     id: "app-server",
   });

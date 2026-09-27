@@ -28,7 +28,7 @@ const fundingObjectSchema = Schema.object({
   type: Schema.string().optional(),
   url: Schema.string(),
 });
-const fundingSchema = Schema.union([
+export const fundingSchema = Schema.union([
   Schema.string(),
   fundingObjectSchema,
   Schema.array(Schema.union([Schema.string(), fundingObjectSchema])),
@@ -561,53 +561,8 @@ export const workspacesSchema = Schema.config(workspacesValueSchema).meta({
   examples: [["./packages/*"]],
 });
 
-// Full npm package.json schema
-const npmPackageSchema = Schema.configGroup(
-  Schema.object({
-    name: nameSchema.optional(),
-    version: versionSchema.optional(),
-    description: descriptionSchema.optional(),
-    keywords: keywordsSchema.optional(),
-    homepage: homepageSchema.optional(),
-    bugs: bugsSchema.optional(),
-    license: licenseSchema.optional(),
-    author: authorSchema.optional(),
-    contributors: contributorsSchema.optional(),
-    maintainers: maintainersSchema.optional(),
-    funding: fundingSchema.optional(),
-    files: filesSchema.optional(),
-    main: mainSchema.optional(),
-    browser: browserSchema.optional(),
-    bin: binSchema.optional(),
-    man: manSchema.optional(),
-    directories: directoriesSchema.optional(),
-    repository: repositorySchema.optional(),
-    scripts: scriptsSchema.optional(),
-    config: configSchema.optional(),
-    dependencies: dependenciesSchema.optional(),
-    devDependencies: devDependenciesSchema.optional(),
-    peerDependencies: peerDependenciesSchema.optional(),
-    peerDependenciesMeta: peerDependenciesMetaSchema.optional(),
-    bundleDependencies: bundleDependenciesSchema.optional(),
-    bundledDependencies: bundledDependenciesSchema.optional(),
-    optionalDependencies: optionalDependenciesSchema.optional(),
-    overrides: overridesSchema.optional(),
-    packageExtensions: packageExtensionsSchema.optional(),
-    engines: enginesSchema.optional(),
-    os: osSchema.optional(),
-    cpu: cpuSchema.optional(),
-    libc: libcSchema.optional(),
-    devEngines: devEnginesSchema.optional(),
-    private: privateSchema.optional(),
-    publishConfig: publishConfigSchema.optional(),
-    workspaces: workspacesSchema.optional(),
-    type: typeSchema.optional(),
-    exports: exportsSchema.optional(),
-    gypfile: gypfileSchema.optional(),
-  })
-    .passthrough()
-    .readonly(),
-).meta({
+// Full npm package.json schema registered without repeating individual field schemas
+const npmPackageSchema = Schema.configGroup().meta({
   urn: NPM_GROUP_URN,
   id: NPM_GROUP_ID,
   title: "npm package.json",

@@ -1,4 +1,4 @@
-import { registry, type ZodType } from "zod";
+import { registry, type ZodType, object } from "zod";
 
 /** Metadata base for all registries. */
 export type MetadataBase = {
@@ -42,18 +42,61 @@ export const configGroupRegistry = registry<MetadataConfigGroup, ZodType<any>>()
 export const configGroupReg = configGroupRegistry;
 
 const registeredFieldsMap = new Map<string, MetadataConfigField>();
+export const fieldsByGroupIdMap = new Map<
+  string,
+  Map<string, { schema: any; meta: MetadataConfigField }>
+>();
 export const registeredGroupsMap = new Map<string, { schema: any; meta: MetadataConfigGroup }>();
+
+// Make configFieldRegistry iterable
+(configFieldRegistry as any)[Symbol.iterator] = function* () {
+  for (const groupFields of fieldsByGroupIdMap.values()) {
+    yield* groupFields.values();
+  }
+};
+
+// Make configGroupRegistry iterable
+(configGroupRegistry as any)[Symbol.iterator] = function* () {
+  yield* registeredGroupsMap.values();
+};
 
 const origFieldAdd = configFieldRegistry.add.bind(configFieldRegistry);
 configFieldRegistry.add = function (schema: any, meta: any) {
   if (meta && typeof meta === "object" && meta.groupId && meta.key) {
     registeredFieldsMap.set(`${meta.groupId}:${meta.key}`, meta);
+
+    let groupFields = fieldsByGroupIdMap.get(meta.groupId);
+    if (!groupFields) {
+      groupFields = new Map();
+      fieldsByGroupIdMap.set(meta.groupId, groupFields);
+    }
+    groupFields.set(meta.key, { schema, meta });
   }
   return origFieldAdd(schema, meta);
 };
 
 export function isFieldRegistered(groupId: string, fieldKey: string): boolean {
   return registeredFieldsMap.has(`${groupId}:${fieldKey}`);
+}
+
+export function getFieldsForGroupId(
+  groupId: string,
+): Map<string, { schema: any; meta: MetadataConfigField }> {
+  return fieldsByGroupIdMap.get(groupId) || new Map();
+}
+
+/**
+ * Dynamically builds a Zod object schema for a group ID from all registered fields in configFieldRegistry.
+ */
+export function buildGroupSchemaFromFields(groupId: string): ZodType<any> {
+  const fields = getFieldsForGroupId(groupId);
+  const shape: Record<string, any> = {};
+
+  for (const [key, fieldEntry] of fields.entries()) {
+    shape[key] = fieldEntry.schema.optional();
+  }
+
+  return object(shape).passthrough().readonly();
 }
 
 export function validateGroupFields(groupSchema: any, groupId: string) {
@@ -81,7 +124,9 @@ export function validateGroupFields(groupSchema: any, groupId: string) {
 const origGroupAdd = configGroupRegistry.add.bind(configGroupRegistry);
 configGroupRegistry.add = function (schema: any, meta: any) {
   if (meta && typeof meta === "object" && meta.id) {
-    validateGroupFields(schema, meta.id);
+    if (schema) {
+      validateGroupFields(schema, meta.id);
+    }
     registeredGroupsMap.set(meta.id, { schema, meta });
   }
   return origGroupAdd(schema, meta);

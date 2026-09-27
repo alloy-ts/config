@@ -2,7 +2,7 @@ import { expect, test } from "vite-plus/test";
 import { z } from "zod";
 import { configFieldRegistry, configGroupRegistry } from "./registries.ts";
 
-test("configFieldRegistry registers schema metadata with required urn and groupId", () => {
+test("configFieldRegistry registers schema metadata and is iterable", () => {
   const schema = z.object({ foo: z.string() }).register(configFieldRegistry, {
     urn: "urn:test:foo",
     key: "foo",
@@ -19,9 +19,15 @@ test("configFieldRegistry registers schema metadata with required urn and groupI
     title: "Foo Field",
     description: "A test foo field",
   });
+
+  // Test iterable
+  const fields = Array.from(configFieldRegistry as any);
+  expect(fields.length).toBeGreaterThan(0);
+  const found = fields.find((f: any) => f.meta?.key === "foo");
+  expect(found).toBeDefined();
 });
 
-test("configGroupRegistry validates registered fields and succeeds with resolveMap", () => {
+test("configGroupRegistry registers group metadata and is iterable", () => {
   z.object({ bar: z.number() }).register(configFieldRegistry, {
     urn: "urn:test:group:bar",
     key: "bar",
@@ -51,6 +57,12 @@ test("configGroupRegistry validates registered fields and succeeds with resolveM
       system: "/etc/testrc",
     },
   });
+
+  // Test iterable
+  const groups = Array.from(configGroupRegistry as any);
+  expect(groups.length).toBeGreaterThan(0);
+  const foundGroup = groups.find((g: any) => g.meta?.id === "test-group-id");
+  expect(foundGroup).toBeDefined();
 });
 
 test("configGroupRegistry throws error if a field is not registered in configFieldRegistry for groupId", () => {
