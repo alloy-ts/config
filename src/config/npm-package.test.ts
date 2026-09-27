@@ -5,7 +5,7 @@ import { configs, nameSchema, npmPackageSchema, value } from "./npm-package.ts";
 test("npmPackageSchema validates current package.json successfully", () => {
   expect(configs).toBeDefined();
   expect(value).toBeDefined();
-  expect(configs.name).toBe("@lib/module");
+  expect(configs.name).toBe("@lib/config");
   expect(configs.type).toBe("module");
 });
 

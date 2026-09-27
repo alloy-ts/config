@@ -16,7 +16,7 @@ test("Config.createDefine works with groupId string and config group schema", ()
 
 test("new Config('npmPackage') instance get and set", () => {
   const npmConfig = new Config("npmPackage");
-  expect(npmConfig.get("name")).toBe("@lib/module");
+  expect(npmConfig.get("name")).toBe("@lib/config");
 
   npmConfig.set("name", "new-package-name");
   expect(npmConfig.get("name")).toBe("new-package-name");
