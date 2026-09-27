@@ -1,9 +1,10 @@
 import * as Schema from "../schema.ts";
 import pkgJson from "../../package.json" with { type: "json" };
-import { configFieldRegistry } from "@/registries.ts";
+import { configFieldRegistry } from "../registries.ts";
+import { seedScopeStore } from "../config.ts";
 
 const NPM_GROUP_ID = "npm-package-json";
-const NPM_GROUP_URN = "urn:config.npmPackage";
+const NPM_GROUP_URN = "urn:npm:package";
 
 // Person schema (used for author, contributors, maintainers)
 const personSchema = Schema.union([
@@ -22,7 +23,7 @@ const personSchema = Schema.union([
   moduleUrl: import.meta.url,
 });
 
-// Funding schema 
+// Funding schema
 const fundingObjectSchema = Schema.object({
   type: Schema.string().optional(),
   url: Schema.string(),
@@ -38,7 +39,7 @@ const fundingSchema = Schema.union([
   title: "Person",
   description: "Person schema (used for author, contributors, maintainers)",
   moduleUrl: import.meta.url,
-});;
+});
 
 // Repository schema
 const repositoryValueSchema = Schema.union([
@@ -91,8 +92,8 @@ const workspacesValueSchema = Schema.union([
   }).passthrough(),
 ]);
 
-// Individual field schemas registered with Schema.config
-export const nameSchema = Schema.config(Schema.string().nonempty(), {
+// Individual field schemas registered with Schema.config and .meta()
+export const nameSchema = Schema.config(Schema.string().nonempty()).meta({
   urn: `${NPM_GROUP_URN}:name`,
   key: "name",
   groupId: NPM_GROUP_ID,
@@ -118,7 +119,7 @@ A name can be optionally prefixed by a scope, e.g. @npm/example. See scope for m
   examples: ["@npm/example"],
 });
 
-export const versionSchema = Schema.config(Schema.string(), {
+export const versionSchema = Schema.config(Schema.string()).meta({
   urn: `${NPM_GROUP_URN}:version`,
   key: "version",
   groupId: NPM_GROUP_ID,
@@ -128,7 +129,7 @@ export const versionSchema = Schema.config(Schema.string(), {
   examples: ["1.0.0"],
 });
 
-export const descriptionSchema = Schema.config(Schema.string(), {
+export const descriptionSchema = Schema.config(Schema.string()).meta({
   urn: `${NPM_GROUP_URN}:description`,
   key: "description",
   groupId: NPM_GROUP_ID,
@@ -139,7 +140,7 @@ export const descriptionSchema = Schema.config(Schema.string(), {
   examples: ["A packaged foo"],
 });
 
-export const keywordsSchema = Schema.config(Schema.array(Schema.string()), {
+export const keywordsSchema = Schema.config(Schema.array(Schema.string())).meta({
   urn: `${NPM_GROUP_URN}:keywords`,
   key: "keywords",
   groupId: NPM_GROUP_ID,
@@ -150,7 +151,7 @@ export const keywordsSchema = Schema.config(Schema.array(Schema.string()), {
   examples: [["node", "javascript", "npm"]],
 });
 
-export const homepageSchema = Schema.config(Schema.string(), {
+export const homepageSchema = Schema.config(Schema.string()).meta({
   urn: `${NPM_GROUP_URN}:homepage`,
   key: "homepage",
   groupId: NPM_GROUP_ID,
@@ -160,7 +161,7 @@ export const homepageSchema = Schema.config(Schema.string(), {
   examples: ["https://github.com/npm/example#readme"],
 });
 
-export const bugsSchema = Schema.config(bugsValueSchema, {
+export const bugsSchema = Schema.config(bugsValueSchema).meta({
   urn: `${NPM_GROUP_URN}:bugs`,
   key: "bugs",
   groupId: NPM_GROUP_ID,
@@ -176,7 +177,7 @@ export const bugsSchema = Schema.config(bugsValueSchema, {
   ],
 });
 
-export const licenseSchema = Schema.config(Schema.string(), {
+export const licenseSchema = Schema.config(Schema.string()).meta({
   urn: `${NPM_GROUP_URN}:license`,
   key: "license",
   groupId: NPM_GROUP_ID,
@@ -187,7 +188,7 @@ export const licenseSchema = Schema.config(Schema.string(), {
   examples: ["BSD-3-Clause"],
 });
 
-export const authorSchema = Schema.config(personSchema, {
+export const authorSchema = Schema.config(personSchema).meta({
   urn: `${NPM_GROUP_URN}:author`,
   key: "author",
   groupId: NPM_GROUP_ID,
@@ -197,7 +198,7 @@ export const authorSchema = Schema.config(personSchema, {
   examples: ["Barney Rubble <barney@npmjs.com> (http://barnyrubble.npmjs.com/)"],
 });
 
-export const contributorsSchema = Schema.config(Schema.array(personSchema), {
+export const contributorsSchema = Schema.config(Schema.array(personSchema)).meta({
   urn: `${NPM_GROUP_URN}:contributors`,
   key: "contributors",
   groupId: NPM_GROUP_ID,
@@ -207,7 +208,7 @@ export const contributorsSchema = Schema.config(Schema.array(personSchema), {
   examples: [[{ name: "Barney Rubble" }]],
 });
 
-export const maintainersSchema = Schema.config(Schema.array(personSchema), {
+export const maintainersSchema = Schema.config(Schema.array(personSchema)).meta({
   urn: `${NPM_GROUP_URN}:maintainers`,
   key: "maintainers",
   groupId: NPM_GROUP_ID,
@@ -217,7 +218,7 @@ export const maintainersSchema = Schema.config(Schema.array(personSchema), {
   examples: [[{ name: "Barney Rubble" }]],
 });
 
-export const filesSchema = Schema.config(Schema.array(Schema.string()), {
+export const filesSchema = Schema.config(Schema.array(Schema.string())).meta({
   urn: `${NPM_GROUP_URN}:files`,
   key: "files",
   groupId: NPM_GROUP_ID,
@@ -228,7 +229,7 @@ export const filesSchema = Schema.config(Schema.array(Schema.string()), {
   examples: [["dist"]],
 });
 
-export const mainSchema = Schema.config(Schema.string(), {
+export const mainSchema = Schema.config(Schema.string()).meta({
   urn: `${NPM_GROUP_URN}:main`,
   key: "main",
   groupId: NPM_GROUP_ID,
@@ -238,7 +239,7 @@ export const mainSchema = Schema.config(Schema.string(), {
   examples: ["./dist/main.mjs"],
 });
 
-export const exportsSchema = Schema.config(Schema.unknown(), {
+export const exportsSchema = Schema.config(Schema.unknown()).meta({
   urn: `${NPM_GROUP_URN}:exports`,
   key: "exports",
   groupId: NPM_GROUP_ID,
@@ -249,7 +250,7 @@ export const exportsSchema = Schema.config(Schema.unknown(), {
   examples: [{ ".": "./dist/main.mjs" }],
 });
 
-export const typeSchema = Schema.config(Schema.enum(["module", "commonjs"]), {
+export const typeSchema = Schema.config(Schema.enum(["module", "commonjs"])).meta({
   urn: `${NPM_GROUP_URN}:type`,
   key: "type",
   groupId: NPM_GROUP_ID,
@@ -264,19 +265,18 @@ export const browserSchema = Schema.config(
     Schema.string(),
     Schema.record(Schema.string(), Schema.union([Schema.string(), Schema.boolean()])),
   ]),
-  {
-    urn: `${NPM_GROUP_URN}:browser`,
-    key: "browser",
-    groupId: NPM_GROUP_ID,
-    title: "Browser",
-    description:
-      "If your module is meant to be used client-side the browser field should be used instead of the main field.",
-    moduleUrl: import.meta.url,
-    examples: ["build/browser.js"],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:browser`,
+  key: "browser",
+  groupId: NPM_GROUP_ID,
+  title: "Browser",
+  description:
+    "If your module is meant to be used client-side the browser field should be used instead of the main field.",
+  moduleUrl: import.meta.url,
+  examples: ["build/browser.js"],
+});
 
-export const binSchema = Schema.config(binValueSchema, {
+export const binSchema = Schema.config(binValueSchema).meta({
   urn: `${NPM_GROUP_URN}:bin`,
   key: "bin",
   groupId: NPM_GROUP_ID,
@@ -287,7 +287,7 @@ export const binSchema = Schema.config(binValueSchema, {
   examples: [{ myapp: "bin/cli.js" }],
 });
 
-export const manSchema = Schema.config(manValueSchema, {
+export const manSchema = Schema.config(manValueSchema).meta({
   urn: `${NPM_GROUP_URN}:man`,
   key: "man",
   groupId: NPM_GROUP_ID,
@@ -297,7 +297,7 @@ export const manSchema = Schema.config(manValueSchema, {
   examples: ["./man/doc.1"],
 });
 
-export const directoriesSchema = Schema.config(directoriesValueSchema, {
+export const directoriesSchema = Schema.config(directoriesValueSchema).meta({
   urn: `${NPM_GROUP_URN}:directories`,
   key: "directories",
   groupId: NPM_GROUP_ID,
@@ -308,7 +308,7 @@ export const directoriesSchema = Schema.config(directoriesValueSchema, {
   examples: [{ lib: "lib" }],
 });
 
-export const repositorySchema = Schema.config(repositoryValueSchema, {
+export const repositorySchema = Schema.config(repositoryValueSchema).meta({
   urn: `${NPM_GROUP_URN}:repository`,
   key: "repository",
   groupId: NPM_GROUP_ID,
@@ -323,7 +323,7 @@ export const repositorySchema = Schema.config(repositoryValueSchema, {
   ],
 });
 
-export const scriptsSchema = Schema.config(Schema.record(Schema.string(), Schema.string()), {
+export const scriptsSchema = Schema.config(Schema.record(Schema.string(), Schema.string())).meta({
   urn: `${NPM_GROUP_URN}:scripts`,
   key: "scripts",
   groupId: NPM_GROUP_ID,
@@ -334,7 +334,7 @@ export const scriptsSchema = Schema.config(Schema.record(Schema.string(), Schema
   examples: [{ test: "vp test" }],
 });
 
-export const gypfileSchema = Schema.config(Schema.boolean(), {
+export const gypfileSchema = Schema.config(Schema.boolean()).meta({
   urn: `${NPM_GROUP_URN}:gypfile`,
   key: "gypfile",
   groupId: NPM_GROUP_ID,
@@ -345,7 +345,7 @@ export const gypfileSchema = Schema.config(Schema.boolean(), {
   examples: [false],
 });
 
-export const configSchema = Schema.config(Schema.record(Schema.string(), Schema.unknown()), {
+export const configSchema = Schema.config(Schema.record(Schema.string(), Schema.unknown())).meta({
   urn: `${NPM_GROUP_URN}:config`,
   key: "config",
   groupId: NPM_GROUP_ID,
@@ -356,7 +356,9 @@ export const configSchema = Schema.config(Schema.record(Schema.string(), Schema.
   examples: [{ port: "8080" }],
 });
 
-export const dependenciesSchema = Schema.config(Schema.record(Schema.string(), Schema.string()), {
+export const dependenciesSchema = Schema.config(
+  Schema.record(Schema.string(), Schema.string()),
+).meta({
   urn: `${NPM_GROUP_URN}:dependencies`,
   key: "dependencies",
   groupId: NPM_GROUP_ID,
@@ -369,113 +371,107 @@ export const dependenciesSchema = Schema.config(Schema.record(Schema.string(), S
 
 export const devDependenciesSchema = Schema.config(
   Schema.record(Schema.string(), Schema.string()),
-  {
-    urn: `${NPM_GROUP_URN}:devDependencies`,
-    key: "devDependencies",
-    groupId: NPM_GROUP_ID,
-    title: "DevDependencies",
-    description: "Map additional tools needed for development in a devDependencies object.",
-    moduleUrl: import.meta.url,
-    examples: [{ "vite-plus": "^1.0.0" }],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:devDependencies`,
+  key: "devDependencies",
+  groupId: NPM_GROUP_ID,
+  title: "DevDependencies",
+  description: "Map additional tools needed for development in a devDependencies object.",
+  moduleUrl: import.meta.url,
+  examples: [{ "vite-plus": "^1.0.0" }],
+});
 
 export const peerDependenciesSchema = Schema.config(
   Schema.record(Schema.string(), Schema.string()),
-  {
-    urn: `${NPM_GROUP_URN}:peerDependencies`,
-    key: "peerDependencies",
-    groupId: NPM_GROUP_ID,
-    title: "PeerDependencies",
-    description: "Express the compatibility of your package with a host tool or library.",
-    moduleUrl: import.meta.url,
-    examples: [{ typescript: "^7.0.0" }],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:peerDependencies`,
+  key: "peerDependencies",
+  groupId: NPM_GROUP_ID,
+  title: "PeerDependencies",
+  description: "Express the compatibility of your package with a host tool or library.",
+  moduleUrl: import.meta.url,
+  examples: [{ typescript: "^7.0.0" }],
+});
 
 export const peerDependenciesMetaSchema = Schema.config(
   Schema.record(Schema.string(), Schema.object({ optional: Schema.boolean().optional() })),
-  {
-    urn: `${NPM_GROUP_URN}:peerDependenciesMeta`,
-    key: "peerDependenciesMeta",
-    groupId: NPM_GROUP_ID,
-    title: "PeerDependenciesMeta",
-    description: "Provides npm more information on how your peer dependencies are to be used.",
-    moduleUrl: import.meta.url,
-    examples: [{ "@npm/soy-milk": { optional: true } }],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:peerDependenciesMeta`,
+  key: "peerDependenciesMeta",
+  groupId: NPM_GROUP_ID,
+  title: "PeerDependenciesMeta",
+  description: "Provides npm more information on how your peer dependencies are to be used.",
+  moduleUrl: import.meta.url,
+  examples: [{ "@npm/soy-milk": { optional: true } }],
+});
 
 export const bundleDependenciesSchema = Schema.config(
   Schema.union([Schema.array(Schema.string()), Schema.boolean()]),
-  {
-    urn: `${NPM_GROUP_URN}:bundleDependencies`,
-    key: "bundleDependencies",
-    groupId: NPM_GROUP_ID,
-    title: "BundleDependencies",
-    description:
-      "Defines an array of package names that will be bundled when publishing the package.",
-    moduleUrl: import.meta.url,
-    examples: [["@npm/renderized"]],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:bundleDependencies`,
+  key: "bundleDependencies",
+  groupId: NPM_GROUP_ID,
+  title: "BundleDependencies",
+  description:
+    "Defines an array of package names that will be bundled when publishing the package.",
+  moduleUrl: import.meta.url,
+  examples: [["@npm/renderized"]],
+});
 
 export const bundledDependenciesSchema = Schema.config(
   Schema.union([Schema.array(Schema.string()), Schema.boolean()]),
-  {
-    urn: `${NPM_GROUP_URN}:bundledDependencies`,
-    key: "bundledDependencies",
-    groupId: NPM_GROUP_ID,
-    title: "BundledDependencies",
-    description: "Alternative spelling for bundleDependencies.",
-    moduleUrl: import.meta.url,
-    examples: [["@npm/renderized"]],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:bundledDependencies`,
+  key: "bundledDependencies",
+  groupId: NPM_GROUP_ID,
+  title: "BundledDependencies",
+  description: "Alternative spelling for bundleDependencies.",
+  moduleUrl: import.meta.url,
+  examples: [["@npm/renderized"]],
+});
 
 export const optionalDependenciesSchema = Schema.config(
   Schema.record(Schema.string(), Schema.string()),
+).meta({
+  urn: `${NPM_GROUP_URN}:optionalDependencies`,
+  key: "optionalDependencies",
+  groupId: NPM_GROUP_ID,
+  title: "OptionalDependencies",
+  description: "Map of package name to version or URL that npm can proceed if installation fails.",
+  moduleUrl: import.meta.url,
+  examples: [{ "@npm/foo": "^1.0.0" }],
+});
+
+export const overridesSchema = Schema.config(Schema.record(Schema.string(), Schema.unknown())).meta(
   {
-    urn: `${NPM_GROUP_URN}:optionalDependencies`,
-    key: "optionalDependencies",
+    urn: `${NPM_GROUP_URN}:overrides`,
+    key: "overrides",
     groupId: NPM_GROUP_ID,
-    title: "OptionalDependencies",
+    title: "Overrides",
     description:
-      "Map of package name to version or URL that npm can proceed if installation fails.",
+      "Replace a package in your dependency tree with another version or package entirely.",
     moduleUrl: import.meta.url,
-    examples: [{ "@npm/foo": "^1.0.0" }],
+    examples: [{ vite: "npm:@voidzero-dev/vite-plus-core@1.0.0-rc.1" }],
   },
 );
-
-export const overridesSchema = Schema.config(Schema.record(Schema.string(), Schema.unknown()), {
-  urn: `${NPM_GROUP_URN}:overrides`,
-  key: "overrides",
-  groupId: NPM_GROUP_ID,
-  title: "Overrides",
-  description:
-    "Replace a package in your dependency tree with another version or package entirely.",
-  moduleUrl: import.meta.url,
-  examples: [{ vite: "npm:@voidzero-dev/vite-plus-core@1.0.0-rc.1" }],
-});
 
 export const packageExtensionsSchema = Schema.config(
   Schema.record(Schema.string(), Schema.unknown()),
-  {
-    urn: `${NPM_GROUP_URN}:packageExtensions`,
-    key: "packageExtensions",
-    groupId: NPM_GROUP_ID,
-    title: "PackageExtensions",
-    description: "Apply small, declarative repairs to the manifests of third-party dependencies.",
-    moduleUrl: import.meta.url,
-    examples: [
-      {
-        "broken-package@1": { dependencies: { "missing-dep": "^2.0.0" } },
-      },
-    ],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:packageExtensions`,
+  key: "packageExtensions",
+  groupId: NPM_GROUP_ID,
+  title: "PackageExtensions",
+  description: "Apply small, declarative repairs to the manifests of third-party dependencies.",
+  moduleUrl: import.meta.url,
+  examples: [
+    {
+      "broken-package@1": { dependencies: { "missing-dep": "^2.0.0" } },
+    },
+  ],
+});
 
-export const enginesSchema = Schema.config(Schema.record(Schema.string(), Schema.string()), {
+export const enginesSchema = Schema.config(Schema.record(Schema.string(), Schema.string())).meta({
   urn: `${NPM_GROUP_URN}:engines`,
   key: "engines",
   groupId: NPM_GROUP_ID,
@@ -487,44 +483,43 @@ export const enginesSchema = Schema.config(Schema.record(Schema.string(), Schema
 
 export const osSchema = Schema.config(
   Schema.union([Schema.string(), Schema.array(Schema.string())]),
-  {
-    urn: `${NPM_GROUP_URN}:os`,
-    key: "os",
-    groupId: NPM_GROUP_ID,
-    title: "OS",
-    description: "Specify which operating systems your module will run on.",
-    moduleUrl: import.meta.url,
-    examples: [["darwin", "linux"]],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:os`,
+  key: "os",
+  groupId: NPM_GROUP_ID,
+  title: "OS",
+  description: "Specify which operating systems your module will run on.",
+  moduleUrl: import.meta.url,
+  examples: [["darwin", "linux"]],
+});
 
 export const cpuSchema = Schema.config(
   Schema.union([Schema.string(), Schema.array(Schema.string())]),
-  {
-    urn: `${NPM_GROUP_URN}:cpu`,
-    key: "cpu",
-    groupId: NPM_GROUP_ID,
-    title: "CPU",
-    description: "Specify which cpu architectures your module will run on.",
-    moduleUrl: import.meta.url,
-    examples: [["x64", "ia32"]],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:cpu`,
+  key: "cpu",
+  groupId: NPM_GROUP_ID,
+  title: "CPU",
+  description: "Specify which cpu architectures your module will run on.",
+  moduleUrl: import.meta.url,
+  examples: [["x64", "ia32"]],
+});
 
 export const libcSchema = Schema.config(
   Schema.union([Schema.string(), Schema.array(Schema.string())]),
-  {
-    urn: `${NPM_GROUP_URN}:libc`,
-    key: "libc",
-    groupId: NPM_GROUP_ID,
-    title: "Libc",
-    description: "Specify which versions of libc your module runs or builds in.",
-    moduleUrl: import.meta.url,
-    examples: ["glibc"],
-  },
-);
+).meta({
+  urn: `${NPM_GROUP_URN}:libc`,
+  key: "libc",
+  groupId: NPM_GROUP_ID,
+  title: "Libc",
+  description: "Specify which versions of libc your module runs or builds in.",
+  moduleUrl: import.meta.url,
+  examples: ["glibc"],
+});
 
-export const devEnginesSchema = Schema.config(Schema.record(Schema.string(), Schema.unknown()), {
+export const devEnginesSchema = Schema.config(
+  Schema.record(Schema.string(), Schema.unknown()),
+).meta({
   urn: `${NPM_GROUP_URN}:devEngines`,
   key: "devEngines",
   groupId: NPM_GROUP_ID,
@@ -534,7 +529,7 @@ export const devEnginesSchema = Schema.config(Schema.record(Schema.string(), Sch
   examples: [{ packageManager: { name: "npm", version: "11.11.0" } }],
 });
 
-export const privateSchema = Schema.config(Schema.boolean(), {
+export const privateSchema = Schema.config(Schema.boolean()).meta({
   urn: `${NPM_GROUP_URN}:private`,
   key: "private",
   groupId: NPM_GROUP_ID,
@@ -544,7 +539,9 @@ export const privateSchema = Schema.config(Schema.boolean(), {
   examples: [true],
 });
 
-export const publishConfigSchema = Schema.config(Schema.record(Schema.string(), Schema.unknown()), {
+export const publishConfigSchema = Schema.config(
+  Schema.record(Schema.string(), Schema.unknown()),
+).meta({
   urn: `${NPM_GROUP_URN}:publishConfig`,
   key: "publishConfig",
   groupId: NPM_GROUP_ID,
@@ -554,7 +551,7 @@ export const publishConfigSchema = Schema.config(Schema.record(Schema.string(), 
   examples: [{ access: "public" }],
 });
 
-export const workspacesSchema = Schema.config(workspacesValueSchema, {
+export const workspacesSchema = Schema.config(workspacesValueSchema).meta({
   urn: `${NPM_GROUP_URN}:workspaces`,
   key: "workspaces",
   groupId: NPM_GROUP_ID,
@@ -610,19 +607,19 @@ const npmPackageSchema = Schema.configGroup(
   })
     .passthrough()
     .readonly(),
-  {
-    urn: NPM_GROUP_URN,
-    id: NPM_GROUP_ID,
-    title: "npm package.json",
-    description: "Schema for npm package.json manifest",
-    moduleUrl: import.meta.url,
-    resolveMap: {
-      local: "package.json",
-    },
+).meta({
+  urn: NPM_GROUP_URN,
+  id: NPM_GROUP_ID,
+  title: "npm package.json",
+  description: "Schema for npm package.json manifest",
+  moduleUrl: import.meta.url,
+  resolveMap: {
+    local: "package.json",
   },
-);
+});
 
 const configs = npmPackageSchema.parse(pkgJson);
+seedScopeStore(NPM_GROUP_ID, "local", configs);
 const value = configs;
 
 export { configs, npmPackageSchema, value };

@@ -42,6 +42,7 @@ export const configGroupRegistry = registry<MetadataConfigGroup, ZodType<any>>()
 export const configGroupReg = configGroupRegistry;
 
 const registeredFieldsMap = new Map<string, MetadataConfigField>();
+export const registeredGroupsMap = new Map<string, { schema: any; meta: MetadataConfigGroup }>();
 
 const origFieldAdd = configFieldRegistry.add.bind(configFieldRegistry);
 configFieldRegistry.add = function (schema: any, meta: any) {
@@ -50,6 +51,10 @@ configFieldRegistry.add = function (schema: any, meta: any) {
   }
   return origFieldAdd(schema, meta);
 };
+
+export function isFieldRegistered(groupId: string, fieldKey: string): boolean {
+  return registeredFieldsMap.has(`${groupId}:${fieldKey}`);
+}
 
 export function validateGroupFields(groupSchema: any, groupId: string) {
   let shape = groupSchema?.shape || groupSchema?._def?.shape;
@@ -77,6 +82,7 @@ const origGroupAdd = configGroupRegistry.add.bind(configGroupRegistry);
 configGroupRegistry.add = function (schema: any, meta: any) {
   if (meta && typeof meta === "object" && meta.id) {
     validateGroupFields(schema, meta.id);
+    registeredGroupsMap.set(meta.id, { schema, meta });
   }
   return origGroupAdd(schema, meta);
 };
