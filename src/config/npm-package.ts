@@ -79,14 +79,14 @@ const directoriesValueSchema = Schema.object({
   doc: Schema.string().optional(),
   lib: Schema.string().optional(),
   man: Schema.string().optional(),
-}).passthrough();
+}).loose();
 
 // Workspaces schema helper
 const workspacesValueSchema = Schema.union([
   Schema.array(Schema.string()),
   Schema.object({
     packages: Schema.array(Schema.string()).optional(),
-  }).passthrough(),
+  }).loose(),
 ]);
 
 // Individual field schemas registered with Schema.config and .meta()
