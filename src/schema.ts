@@ -104,9 +104,13 @@ export class $SchemaRegistry<
       if (keyId && typeof keyId === "string") {
         this._idmap.set(keyId, schema);
       }
+      if (meta.urn) {
+        this._idmap.set(meta.urn, schema);
+      }
       if (meta.groupId && meta.key) {
         this._idmap.set(`${meta.groupId}:${meta.key}`, schema);
         this._idmap.set(`${meta.groupId}.${meta.key}`, schema);
+        this._idmap.set(`urn:config:${meta.groupId}.${meta.key}`, schema);
       }
     }
 
@@ -161,7 +165,8 @@ export class $SchemaRegistry<
             meta.key === schemaOrKey ||
             meta.urn === schemaOrKey ||
             `${meta.groupId}:${meta.key}` === schemaOrKey ||
-            `${meta.groupId}.${meta.key}` === schemaOrKey)
+            `${meta.groupId}.${meta.key}` === schemaOrKey ||
+            `urn:config:${meta.groupId}.${meta.key}` === schemaOrKey)
         ) {
           return meta;
         }
@@ -181,7 +186,8 @@ export class $SchemaRegistry<
             meta.key === schemaOrKey ||
             meta.urn === schemaOrKey ||
             `${meta.groupId}:${meta.key}` === schemaOrKey ||
-            `${meta.groupId}.${meta.key}` === schemaOrKey)
+            `${meta.groupId}.${meta.key}` === schemaOrKey ||
+            `urn:config:${meta.groupId}.${meta.key}` === schemaOrKey)
         ) {
           return true;
         }
@@ -330,7 +336,7 @@ function createConfigProxy<T extends ZodType<any>, M>(
           if (currentSchema) {
             return currentSchema.parse(input);
           }
-          throw new Error("Config schema is not initialized or registered with metadata.");
+          throw new Error("Config schema is not initialised or registered with metadata.");
         };
       }
 

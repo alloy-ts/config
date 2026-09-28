@@ -42,28 +42,28 @@ export function seedScopeStore(groupId: string, scope: Scope, values: Record<str
 /**
  * Helper to strip prefixes and non-alphanumeric delimiters for flexible matching.
  */
-function normalizeIdentifier(str: string): string {
+function normaliseIdentifier(str: string): string {
   return str
     .replace(/^urn:/i, "")
-    .replace(/^config\./i, "")
+    .replace(/^config[:.]/i, "")
     .replace(/[:._-]/g, "")
     .toLowerCase();
 }
 
 /**
- * Resolves a group entry from registered groups by string identifier (id, urn, or normalized name).
+ * Resolves a group entry from registered groups by string identifier (id, urn, or normalised name).
  */
 export function resolveGroup(groupIdentifier: string): { schema: any; meta: MetadataConfigGroup } {
   const query = groupIdentifier.trim();
-  const normalizedQuery = normalizeIdentifier(query);
+  const normalisedQuery = normaliseIdentifier(query);
 
   for (const entry of registeredGroupsMap.values()) {
     const { meta } = entry;
     if (
       meta.id === query ||
       meta.urn === query ||
-      normalizeIdentifier(meta.urn) === normalizedQuery ||
-      normalizeIdentifier(meta.id) === normalizedQuery
+      normaliseIdentifier(meta.urn || "") === normalisedQuery ||
+      normaliseIdentifier(meta.id) === normalisedQuery
     ) {
       const groupSchema = entry.schema || buildGroupSchemaFromFields(meta.id);
       return { schema: groupSchema, meta };
@@ -75,7 +75,7 @@ export function resolveGroup(groupIdentifier: string): { schema: any; meta: Meta
   if (fields.size > 0) {
     const meta: MetadataConfigGroup = {
       id: query,
-      urn: query,
+      urn: `urn:config:${query}`,
     };
     const groupSchema = buildGroupSchemaFromFields(query);
     return { schema: groupSchema, meta };

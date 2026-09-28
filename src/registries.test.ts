@@ -1,10 +1,34 @@
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
-import { configFieldRegistry, configGroupRegistry } from "./registries.ts";
+import {
+  configFieldRegistry,
+  configGroupRegistry,
+  formatConfigUrn,
+  parseConfigUrn,
+} from "./registries.ts";
 
-test("configFieldRegistry registers schema metadata and is iterable", () => {
+test("formatConfigUrn and parseConfigUrn follow urn:config:{group}.{field}.?{subfield}", () => {
+  expect(formatConfigUrn("std")).toBe("urn:config:std");
+  expect(formatConfigUrn("std", "codegen")).toBe("urn:config:std.codegen");
+  expect(formatConfigUrn("npm-package", "author", "person")).toBe(
+    "urn:config:npm-package.author.person",
+  );
+
+  expect(parseConfigUrn("urn:config:std")).toEqual({ group: "std" });
+  expect(parseConfigUrn("urn:config:std.codegen")).toEqual({
+    group: "std",
+    field: "codegen",
+  });
+  expect(parseConfigUrn("urn:config:npm-package.author.person")).toEqual({
+    group: "npm-package",
+    field: "author",
+    subfield: "person",
+  });
+  expect(parseConfigUrn("invalid:urn")).toBeUndefined();
+});
+
+test("configFieldRegistry registers schema metadata and auto-normalises URN", () => {
   const schema = z.object({ foo: z.string() }).register(configFieldRegistry, {
-    urn: "test.foo",
     key: "foo",
     groupId: "test-group",
     title: "Foo Field",
@@ -13,7 +37,7 @@ test("configFieldRegistry registers schema metadata and is iterable", () => {
 
   const metadata = configFieldRegistry.get(schema);
   expect(metadata).toMatchObject({
-    urn: "test.foo",
+    urn: "urn:config:test-group.foo",
     key: "foo",
     groupId: "test-group",
     title: "Foo Field",
@@ -28,16 +52,14 @@ test("configFieldRegistry registers schema metadata and is iterable", () => {
   expect(found).toBeDefined();
 });
 
-test("configGroupRegistry registers group metadata and is iterable", () => {
+test("configGroupRegistry registers group metadata and auto-normalises URN", () => {
   z.object({ bar: z.number() }).register(configFieldRegistry, {
-    urn: "test.group:bar",
     key: "bar",
     groupId: "test-group-id",
     title: "Bar Field",
   });
 
   const groupSchema = z.object({ bar: z.number() }).register(configGroupRegistry, {
-    urn: "test.group",
     id: "test-group-id",
     title: "Test Group",
     resolveMap: {
@@ -49,7 +71,7 @@ test("configGroupRegistry registers group metadata and is iterable", () => {
 
   const metadata = configGroupRegistry.get(groupSchema);
   expect(metadata).toMatchObject({
-    urn: "test.group",
+    urn: "urn:config:test-group-id",
     id: "test-group-id",
     title: "Test Group",
     resolveMap: {

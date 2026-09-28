@@ -8,7 +8,7 @@ test("Schema.s is re-exported alias for Schema.z", () => {
 
 test("Schema.config supports .describe() chaining and registers description in configFieldRegistry", () => {
   const describedField = Schema.config(Schema.string()).describe("An awesome description").meta({
-    urn: "test.field.described",
+    urn: "urn:config:test-group-id.described",
     key: "described",
     groupId: "test-group-id",
   });
@@ -18,6 +18,7 @@ test("Schema.config supports .describe() chaining and registers description in c
   const meta = configFieldRegistry.get(describedField);
   expect(meta?.description).toBe("An awesome description");
   expect(meta?.key).toBe("described");
+  expect(meta?.urn).toBe("urn:config:test-group-id.described");
 });
 
 test("Schema.registry ($SchemaRegistry) supports string key lookup, size, iteration, remove, clear", () => {
@@ -55,7 +56,7 @@ test("Schema.registry ($SchemaRegistry) supports string key lookup, size, iterat
 
 test("Schema.config registers single field schema into configFieldRegistry using .meta()", () => {
   const nameField = Schema.config(Schema.string().min(1)).meta({
-    urn: "test.field.name",
+    urn: "urn:config:test-group-id.name",
     key: "name",
     groupId: "test-group-id",
     title: "Name Field",
@@ -65,7 +66,7 @@ test("Schema.config registers single field schema into configFieldRegistry using
 
   const meta = configFieldRegistry.get(nameField);
   expect(meta).toMatchObject({
-    urn: "test.field.name",
+    urn: "urn:config:test-group-id.name",
     key: "name",
     groupId: "test-group-id",
     title: "Name Field",
@@ -75,7 +76,7 @@ test("Schema.config registers single field schema into configFieldRegistry using
 
 test("Schema.config supports chaining method calls before .meta()", () => {
   const urnField = Schema.config(Schema.string()).startsWith("urn:").meta({
-    urn: "test.field.urnField",
+    urn: "urn:config:test-group-id.urnField",
     key: "urnField",
     groupId: "test-group-id",
     title: "URN Field",
@@ -85,12 +86,12 @@ test("Schema.config supports chaining method calls before .meta()", () => {
   expect(() => urnField.parse("invalid")).toThrow();
 
   const meta = configFieldRegistry.get(urnField);
-  expect(meta?.urn).toBe("test.field.urnField");
+  expect(meta?.urn).toBe("urn:config:test-group-id.urnField");
 });
 
 test("Schema.config supports integer/number positive().meta()", () => {
   const positiveInt = Schema.config(Schema.number().int()).positive().meta({
-    urn: "test.field.positiveInt",
+    urn: "urn:config:test-group-id.positiveInt",
     key: "positiveInt",
     groupId: "test-group-id",
     title: "Positive Int Field",
@@ -103,21 +104,21 @@ test("Schema.config supports integer/number positive().meta()", () => {
 
 test("Schema.configGroup registers group schema into configGroupRegistry without passing field schemas", () => {
   Schema.config(Schema.number()).meta({
-    urn: "test.field.age",
+    urn: "urn:config:user-config.age",
     key: "age",
     groupId: "user-config",
     title: "Age Field",
   });
 
   const userGroup = Schema.configGroup().meta({
-    urn: "test.group:user",
+    urn: "urn:config:user-config",
     id: "user-config",
     title: "User Config",
   });
 
   const meta = configGroupRegistry.get(userGroup);
   expect(meta).toMatchObject({
-    urn: "test.group:user",
+    urn: "urn:config:user-config",
     id: "user-config",
     title: "User Config",
   });

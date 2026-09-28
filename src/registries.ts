@@ -14,9 +14,72 @@ function injectModuleUrl(meta: any): any {
   return meta;
 }
 
+/**
+ * Formats a config URN according to the standard:
+ * `urn:config:{group}.{field}.?{subfield}`
+ */
+export function formatConfigUrn(groupId: string, fieldKey?: string, subfield?: string): string {
+  let urn = `urn:config:${groupId}`;
+  if (fieldKey) {
+    urn += `.${fieldKey}`;
+    if (subfield) {
+      urn += `.${subfield}`;
+    }
+  }
+  return urn;
+}
+
+/**
+ * Parses a config URN in the format `urn:config:{group}.{field}.?{subfield}`
+ */
+export function parseConfigUrn(
+  urn: string,
+): { group: string; field?: string; subfield?: string } | undefined {
+  if (!urn || typeof urn !== "string") return undefined;
+  const match = /^urn:config:([^.]+)(?:\.([^.]+))?(?:\.(.+))?$/i.exec(urn.trim());
+  if (!match) return undefined;
+  const [, group, field, subfield] = match;
+  return {
+    group: group!,
+    ...(field ? { field } : {}),
+    ...(subfield ? { subfield } : {}),
+  };
+}
+
+/**
+ * Auto-defaults or normalizes `urn` on registration metadata following
+ * `urn:config:{group}.{field}.?{subfield}`.
+ */
+export function normalizeUrn(meta: any): any {
+  if (!meta || typeof meta !== "object") return meta;
+
+  if (meta.groupId && meta.key) {
+    if (!meta.urn) {
+      meta.urn = formatConfigUrn(meta.groupId, meta.key);
+    } else if (!meta.urn.startsWith("urn:config:")) {
+      const cleaned = meta.urn.replace(/^urn:/i, "").replace(/^config[:.]/i, "");
+      const parts = cleaned.split(".");
+      if (parts.length >= 2) {
+        meta.urn = formatConfigUrn(parts[0], parts[1], parts.slice(2).join(".") || undefined);
+      } else {
+        meta.urn = formatConfigUrn(meta.groupId, meta.key);
+      }
+    }
+  } else if (meta.id) {
+    if (!meta.urn) {
+      meta.urn = formatConfigUrn(meta.id);
+    } else if (!meta.urn.startsWith("urn:config:")) {
+      const cleaned = meta.urn.replace(/^urn:/i, "").replace(/^config[:.]/i, "");
+      meta.urn = formatConfigUrn(cleaned || meta.id);
+    }
+  }
+
+  return meta;
+}
+
 /** Metadata base for all registries. */
 export type MetadataBase = {
-  urn: string;
+  urn?: string;
   title?: string;
   description?: string;
   moduleUrl?: string;
@@ -65,6 +128,7 @@ export const registeredGroupsMap = new Map<string, { schema: any; meta: Metadata
 const origFieldAdd = configFieldRegistry.add.bind(configFieldRegistry);
 configFieldRegistry.add = function (schema: any, meta: any) {
   meta = injectModuleUrl(meta);
+  meta = normalizeUrn(meta);
   if (meta && typeof meta === "object" && meta.groupId && meta.key) {
     registeredFieldsMap.set(`${meta.groupId}:${meta.key}`, meta);
 
@@ -127,6 +191,7 @@ export function validateGroupFields(groupSchema: any, groupId: string) {
 const origGroupAdd = configGroupRegistry.add.bind(configGroupRegistry);
 configGroupRegistry.add = function (schema: any, meta: any) {
   meta = injectModuleUrl(meta);
+  meta = normalizeUrn(meta);
   if (meta && typeof meta === "object" && meta.id) {
     if (schema) {
       validateGroupFields(schema, meta.id);

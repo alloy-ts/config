@@ -17,7 +17,7 @@ test("stdSchema validates default std configuration", () => {
 test("stdSchema is registered on configGroupRegistry", () => {
   const meta = configGroupRegistry.get(stdSchema);
   expect(meta).toBeDefined();
-  expect(meta?.urn).toBe("urn:config.std");
+  expect(meta?.urn).toBe("urn:config:std");
   expect(meta?.id).toBe("std");
 });
 
@@ -25,8 +25,10 @@ test("codegenSchema and resolveMapSchema are registered on configFieldRegistry",
   const codegenMeta = configFieldRegistry.get(codegenSchema);
   expect(codegenMeta?.key).toBe("codegen");
   expect(codegenMeta?.groupId).toBe("std");
+  expect(codegenMeta?.urn).toBe("urn:config:std.codegen");
 
   const resolveMapMeta = configFieldRegistry.get(resolveMapSchema);
   expect(resolveMapMeta?.key).toBe("resolveMap");
   expect(resolveMapMeta?.groupId).toBe("std");
+  expect(resolveMapMeta?.urn).toBe("urn:config:std.resolveMap");
 });
