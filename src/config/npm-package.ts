@@ -15,7 +15,7 @@ const personSchema = Schema.union([
     url: Schema.string().optional(),
   }),
 ]).register(configFieldRegistry, {
-  urn: "config.npmPackage.person",
+  urn: "config.npm-package.person",
   key: "person",
   groupId: NPM_GROUP_ID,
   title: "Person",
@@ -32,7 +32,7 @@ export const fundingSchema = Schema.union([
   fundingObjectSchema,
   Schema.array(Schema.union([Schema.string(), fundingObjectSchema])),
 ]).register(configFieldRegistry, {
-  urn: "config.npmPackage.funding",
+  urn: "config.npm-package.funding",
   key: "funding",
   groupId: NPM_GROUP_ID,
   title: "Person",
@@ -48,7 +48,7 @@ const repositoryValueSchema = Schema.union([
     directory: Schema.string().optional(),
   }),
 ]).register(configFieldRegistry, {
-  urn: "config.npmPackage.repository",
+  urn: "config.npm-package.repository",
   key: "repository",
   groupId: NPM_GROUP_ID,
   title: "Repository",

@@ -6,9 +6,9 @@ Configuration management library built on top of Zod schema definitions with sup
 
 - **Proxy-Intercepted `.meta()` Chaining**: Define fields and config groups with `Schema.config(schema).meta(metadata)` and `Schema.configGroup(schema).meta(metadata)` while chaining Zod validation methods.
 - **Strongly Typed `defineConfig`**: Create typed configuration helper functions with `Config.createDefine("groupId")` or `createDefineConfig(schema)`.
-- **Flexible Global & Instance Resolution**: Resolve configuration keys using full URNs (e.g., `urn:config.npmPackage:name`), prefixed paths (`config.npmPackage.name`), short paths (`npmPackage:name`, `npmPackage.name`), or group instances (`new Config("npmPackage")`).
+- **Flexible Global & Instance Resolution**: Resolve configuration keys using full URNs (e.g., `urn:config.npm-package:name`), prefixed paths (`config.npm-package.name`), short paths (`npm-package.name`, `npm-package.name`), or group instances (`new Config("npm-package")`).
 - **Scope-Aware Management**: Supports scope stores (`local`, `user`, `system`) with automatic fallback priority (`local` -> `user` -> `system`).
-- **CLI Command Interface**: Built-in CLI runner supporting `get` and `set` commands with `--scope=<scope>`.
+- **Command Line Interface**: Built-in CLI runner supporting `get` and `set` commands with `--scope=<scope>`.
 
 ---
 
@@ -32,7 +32,7 @@ import * as Schema from "@lib/config";
 
 // Register individual field
 export const nameSchema = Schema.config(Schema.string().nonempty()).meta({
-  urn: "urn:config.npmPackage:name",
+  urn: "config.npm-package.name",
   key: "name",
   groupId: "npm-package",
   title: "Name",
@@ -44,7 +44,7 @@ export const npmPackageSchema = Schema.configGroup(
     name: nameSchema.optional(),
   }),
 ).meta({
-  urn: "urn:config.npmPackage",
+  urn: "config.npm-package",
   id: "npm-package",
   title: "npm package.json",
   resolveMap: {
@@ -61,7 +61,7 @@ Create strongly-typed `defineConfig` functions from a group ID or schema object:
 import { Config, createDefineConfig } from "@lib/config";
 
 // From group ID string
-const defineConfig = Config.createDefine("config.npmPackage");
+const defineConfig = Config.createDefine("config.npm-package");
 
 export default defineConfig({
   name: "my-awesome-package",
@@ -76,7 +76,7 @@ Access and update configuration for a specific group:
 ```ts
 import { Config } from "@lib/config";
 
-const npmConfig = new Config("npmPackage");
+const npmConfig = new Config("npm-package");
 
 // Get a field
 const name = npmConfig.get("name");
@@ -96,13 +96,13 @@ Resolve configuration across all registered schemas using full URNs or short key
 import { Config } from "@lib/config";
 
 // Supports full URN or short keys
-Config.get("urn:config.npmPackage:name");
-Config.get("config.npmPackage.name");
-Config.get("npmPackage:name");
-Config.get("npmPackage.name");
+Config.get("urn:config.npm-package:name");
+Config.get("config.npm-package.name");
+Config.get("npm-package:name");
+Config.get("npm-package.name");
 
 // Set values
-Config.set("npmPackage.name", "new-name", "local");
+Config.set("npm-package.name", "new-name", "local");
 ```
 
 ### 5. Scope Resolution
@@ -112,14 +112,14 @@ Scope stores resolve values in order of priority: `local` -> `user` -> `system`.
 ```ts
 import { Config } from "@lib/config";
 
-Config.set("npmPackage.name", "system-val", "system");
-Config.set("npmPackage.name", "user-val", "user");
+Config.set("npm-package.name", "system-val", "system");
+Config.set("npm-package.name", "user-val", "user");
 
 // Returns 'user-val' because 'user' takes precedence over 'system' (local is undefined)
-console.log(Config.get("npmPackage.name"));
+console.log(Config.get("npm-package.name"));
 
 // Explicit scope query
-console.log(Config.get("npmPackage.name", "system")); // 'system-val'
+console.log(Config.get("npm-package.name", "system")); // 'system-val'
 ```
 
 ### 6. CLI Usage
@@ -128,12 +128,12 @@ The package exports a CLI runner for command line access:
 
 ```bash
 # Get configuration value
-npm start -- get npmPackage.name
-npm start -- get --scope=local npmPackage.name
+npm start -- get npm-package.name
+npm start -- get --scope=local npm-package.name
 
 # Set configuration value
-npm start -- set npmPackage.name "my-updated-package"
-npm start -- set --scope=user npmPackage.name "user-override"
+npm start -- set npm-package.name "my-updated-package"
+npm start -- set --scope=user npm-package.name "user-override"
 ```
 
 ---

@@ -230,13 +230,46 @@ function getRegistry(registryOrGetter: any): any {
   return typeof registryOrGetter === "function" ? registryOrGetter() : registryOrGetter;
 }
 
+function captureCallerModuleUrl(): string | undefined {
+  const err = new Error();
+  const stack = err.stack;
+  if (!stack) return undefined;
+
+  const lines = stack.split("\n");
+  for (const line of lines) {
+    if (
+      line.includes("at ") &&
+      !line.includes("createConfigProxy") &&
+      !line.includes("captureCallerModuleUrl") &&
+      !line.includes("createConfigWrapper") &&
+      !line.includes("configGroup") &&
+      !line.includes("schema.ts")
+    ) {
+      const match = line.match(/(file:\/\/\/[^\s):]+|\/[^\s):]+)/);
+      if (match && match[1]) {
+        let url = match[1];
+        if (!url.startsWith("file://") && url.startsWith("/")) {
+          url = `file://${url}`;
+        }
+        return url;
+      }
+    }
+  }
+  return undefined;
+}
+
 function createConfigProxy<T extends ZodType<any>, M>(
   schema: T | undefined,
   registryTarget: any,
   initialMeta?: M,
 ): any {
   let currentSchema: any = schema;
-  let currentMeta: any = initialMeta ? { ...initialMeta } : undefined;
+  let callerUrl = captureCallerModuleUrl();
+  let currentMeta: any = initialMeta
+    ? { moduleUrl: callerUrl, ...initialMeta }
+    : callerUrl
+      ? { moduleUrl: callerUrl }
+      : undefined;
 
   if (currentMeta) {
     if (!currentSchema && currentMeta.id) {

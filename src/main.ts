@@ -3,6 +3,15 @@ import { cli } from "./cli.ts";
 export * from "./cli.ts";
 export * from "./config.ts";
 export * from "./config/npm-package.ts";
+export {
+  codegenItemSchema,
+  codegenSchema,
+  defaultStdConfig,
+  resolveMapSchema,
+  stdConfigs,
+  stdSchema,
+  stdValue,
+} from "./config/std.ts";
 export * from "./registries.ts";
 export * from "./schema.ts";
 export { set } from "./config.ts";

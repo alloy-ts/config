@@ -4,7 +4,7 @@ import "./config/npm-package.ts";
 import * as Schema from "./schema.ts";
 
 test("Config.createDefine and createDefineConfig work with groupId string or schema object", () => {
-  const defineConfigFromGroupId = Config.createDefine("config.npmPackage");
+  const defineConfigFromGroupId = Config.createDefine("config.npm-package");
   const res1 = defineConfigFromGroupId({ name: "my-app", version: "1.0.0" });
   expect(res1.name).toBe("my-app");
   expect(res1.version).toBe("1.0.0");
@@ -37,14 +37,14 @@ test("Global Config.get and Config.set with full URN, with and without config. p
   // Test with 'npmPackage.version'
   expect(Config.get("npmPackage.version")).toBe("0.0.0");
 
-  // Test setting via 'config.npmPackage.version'
-  Config.set("config.npmPackage.version", "1.2.3");
-  expect(Config.get("config.npmPackage.version")).toBe("1.2.3");
+  // Test setting via 'config.npm-package.version'
+  Config.set("config.npm-package.version", "1.2.3");
+  expect(Config.get("config.npm-package.version")).toBe("1.2.3");
   expect(Config.get("npmPackage:version")).toBe("1.2.3");
-  expect(Config.get("urn:config.npmPackage:version")).toBe("1.2.3");
+  expect(Config.get("urn:config.npm-package:version")).toBe("1.2.3");
 
   // Test full group get
-  const pkgGroup = Config.get("config.npmPackage");
+  const pkgGroup = Config.get("config.npm-package");
   expect(pkgGroup.version).toBe("1.2.3");
 });
 
@@ -83,6 +83,6 @@ test("Scope resolution and scope stores (local, user, system)", () => {
 test("Throws error when group or field key is not found", () => {
   expect(() => Config.get("nonexistentGroup.key")).toThrow(/could not be resolved|not found/);
 
-  const npmConfig = new Config("npmPackage");
+  const npmConfig = new Config("npm-package");
   expect(() => npmConfig.get("nonexistentField")).toThrow(/not found in config group/);
 });
