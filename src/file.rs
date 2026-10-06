@@ -67,7 +67,7 @@ impl config::Source for File {
 
 #[napi]
 impl File {
-    #[napi(factory)]
+    #[napi(constructor)]
     pub fn new(name: String, format: Option<FileFormat>) -> Self {
         Self {
             source: FileSourceType::File { name, format },

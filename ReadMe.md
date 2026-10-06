@@ -1,53 +1,36 @@
-# Starter Template
+# @alloy-ts/config
 
-TypeScript starter template.
+TypeScript NAPI-RS bindings for Rust's `config` crate. Organises hierarchical or layered configuration for TypeScript and Rust applications.
 
-## Development
-
-- Configure local hooks:
+## Installation
 
 ```bash
-npm run prepare
+npm install @alloy-ts/config
 ```
 
-- Install dependencies:
+## Quick Start
 
-```bash
-vp install
+```typescript
+import { Config } from "@alloy-ts/config";
+
+const config = Config.builder()
+  .setDefault("default", "1")
+  .addSource(new Config.File("config/settings", Config.File.Format.Json))
+  .setOverride("override", "1")
+  .build();
+
+console.log(config.getString("default")); // "1"
+console.log(config.getString("override")); // "1"
 ```
 
-- Run the unit tests:
+## Features
+
+- **Hierarchical Layering**: Combine defaults, external configuration files (JSON, TOML, YAML, RON, INI, JSON5), and explicit overrides.
+- **Strong Types**: Conversion between JavaScript types and Rust `Value` structures.
+- **Native Performance**: Powered by NAPI-RS and Rust's `config` crate.
+
+## Running Examples
 
 ```bash
-vp test
-```
-
-- Run the locally:
-
-```bash
-npm run dev
-```
-
-- Build the library:
-
-```bash
-npm run build
-```
-
-- Code formatting:
-
-```bash
-npm run fmt
-```
-
-- Linting:
-
-```bash
-npm run lint
-```
-
-- Code check:
-
-```bash
-npm run check
+node --import @oxc-node/core examples/config-file.ts
 ```
