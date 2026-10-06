@@ -1,0 +1,6 @@
+{
+  "app": {
+    "name": "alloy-example",
+    "port": 3000
+  }
+}

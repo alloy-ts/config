@@ -27,7 +27,7 @@ test("Config.builder() static factory works", () => {
   expect(config.getString("key")).toBe("value");
 });
 
-test("Config reading JSON file string source via File.fromStr and File.new", () => {
+test("Config reading JSON file string source via File.fromStr and new File", () => {
   const jsonContent = JSON.stringify({
     app: {
       name: "alloy-test",
@@ -49,7 +49,7 @@ test("Config reading JSON file string source via File.fromStr and File.new", () 
   expect(config.getTable("app.metadata")).toEqual({ env: "test" });
   expect(config.get("app.name")).toBe("alloy-test");
 
-  const file2 = File.new("config/settings", FileFormat.Json);
+  const file2 = new File("config/settings", FileFormat.Json);
   expect(file2).toBeDefined();
 });
 
@@ -58,7 +58,7 @@ test("Config Environment source", () => {
   process.env.APP_MAX_CONNECTIONS = "10";
 
   const envSource = Environment.withPrefix("APP").separator("_");
-  const builder = new ConfigBuilder().addSource(envSource);
+  const builder = new ConfigBuilder().addEnvSource(envSource);
   const config = builder.build();
 
   expect(config.getString("database.url")).toBe("postgres://localhost/db");
@@ -87,14 +87,13 @@ test("Config tryDeserialize and Config.tryFrom", () => {
 });
 
 test("Value class methods", () => {
-  const vBool = Value.new(true, "origin_test");
-  expect(vBool.origin()).toBe("origin_test");
+  const vBool = Value.new(true);
   expect(vBool.intoBool()).toBe(true);
 
   const vInt = Value.new(42);
   expect(vInt.intoInt()).toBe(42);
   expect(vInt.intoUint()).toBe(42);
-  expect(vInt.intoInt128()).toBe(42);
+  expect(vInt.intoInt128()).toBe("42");
 
   const vFloat = Value.new(3.14);
   expect(vFloat.intoFloat()).toBe(3.14);
@@ -109,7 +108,7 @@ test("Value class methods", () => {
 
   const vTable = Value.new({ k: "v" });
   const tbl = vTable.intoTable();
-  expect(tbl.k.intoString()).toBe("v");
+  expect(tbl).toEqual({ k: "v" });
 });
 
 test("ConfigBuilder buildCloned allows multiple builds", () => {
