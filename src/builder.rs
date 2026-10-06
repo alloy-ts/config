@@ -1,13 +1,13 @@
-use config::builder::DefaultState as InnerDefaultState;
-use config::ConfigBuilder as InnerConfigBuilder;
-use napi::Either;
+use ::config::builder::DefaultState as InnerDefaultState;
+use ::config::ConfigBuilder as InnerConfigBuilder;
+use napi::bindgen_prelude::Either3;
 use napi_derive::napi;
 
-use crate::configuration::Config;
+use crate::config::Config;
 use crate::file::File;
+use crate::json_to_config_value;
 use crate::value::to_napi_err;
 use crate::BoxedSource;
-use crate::json_to_config_value;
 
 /// A configuration builder.
 #[napi]
@@ -63,10 +63,14 @@ impl ConfigBuilder {
     }
 
     #[napi]
-    pub fn add_source(&mut self, source: Either<&File, &Environment>) -> napi::Result<&Self> {
+    pub fn add_source(
+        &mut self,
+        source: Either3<&File, &Environment, &Config>,
+    ) -> napi::Result<&Self> {
         let boxed = match source {
-            Either::A(file) => file.into_config_source()?,
-            Either::B(env) => env.into_config_source(),
+            Either3::A(file) => file.into_config_source()?,
+            Either3::B(env) => env.into_config_source(),
+            Either3::C(cfg) => BoxedSource(Box::new(cfg.clone())),
         };
         self.inner = self.inner.clone().add_source(boxed);
         Ok(self)
@@ -142,7 +146,7 @@ impl Environment {
     }
 
     pub(crate) fn into_config_source(&self) -> BoxedSource {
-        let mut env = config::Environment::default();
+        let mut env = ::config::Environment::default();
         if let Some(p) = &self.prefix {
             env = env.prefix(p);
         }
