@@ -1,33 +1,155 @@
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
 import { NapiCli } from "@napi-rs/cli";
 
-async function run() {
+interface TargetMatrixEntry {
+  target: string;
+  flags: string;
+}
+
+interface ParsedArgs {
+  targetFilter: string | null;
+  release: boolean;
+  dryRun: boolean;
+  buildAll: boolean;
+  useNapiCross: boolean;
+  crossCompile: boolean;
+  useCross: boolean;
+}
+
+function getTargetMatrix(): TargetMatrixEntry[] {
+  const pkgPath = path.resolve(process.cwd(), "package.json");
+  let targets: string[] = [];
+
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkgContent = fs.readFileSync(pkgPath, "utf-8");
+      const pkgJson = JSON.parse(pkgContent);
+      if (pkgJson?.napi?.targets && Array.isArray(pkgJson.napi.targets)) {
+        targets = pkgJson.napi.targets;
+      }
+    } catch (err) {
+      console.warn(
+        "Could not read targets from package.json, falling back to default matrix.",
+        err,
+      );
+    }
+  }
+
+  if (targets.length === 0) {
+    targets = [
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "i686-pc-windows-msvc",
+      "aarch64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-musl",
+      "armv7-unknown-linux-gnueabihf",
+    ];
+  }
+
+  return targets.map((target) => ({
+    target,
+    flags: target.includes("linux-gnu") || target.includes("gnueabihf") ? "--use-napi-cross" : "-x",
+  }));
+}
+
+function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
-  const isRelease = args.includes("--release") || args.includes("-r");
+
+  let targetFilter: string | null = null;
+  const targetIdx = args.findIndex((a) => a === "--target" || a === "-t");
+  const targetVal = targetIdx !== -1 ? args[targetIdx + 1] : undefined;
+  if (targetVal && !targetVal.startsWith("-")) {
+    targetFilter = targetVal;
+  }
+
+  const release = args.includes("--release") || args.includes("-r");
+  const dryRun = args.includes("--dry-run");
+  const buildAll =
+    args.includes("--all") || args.includes("--build-all") || args.includes("--target-all");
+
   const useNapiCross = args.includes("--use-napi-cross");
   const crossCompile = args.includes("--cross-compile") || args.includes("-x");
   const useCross = args.includes("--use-cross");
 
-  const targetIdx = args.findIndex((a) => a === "--target" || a === "-t");
-  const target = targetIdx !== -1 && args[targetIdx + 1] ? args[targetIdx + 1] : undefined;
-
-  const cli = new NapiCli();
-  await cli.build({
-    platform: true,
-    esm: true,
-    outputDir: "./dist",
-    release: isRelease,
-    target,
+  return {
+    targetFilter,
+    release,
+    dryRun,
+    buildAll,
     useNapiCross,
     crossCompile,
     useCross,
-  });
-
-  const fs = await import("node:fs");
-  fs.writeFileSync("index.js", 'export * from "./dist/index.js";\n');
-  fs.writeFileSync("index.d.ts", 'export * from "./dist/index.js";\n');
+  };
 }
 
-void run().catch((err) => {
-  console.error(err);
+async function runCrossBuild() {
+  const TARGET_MATRIX = getTargetMatrix();
+  const { targetFilter, release, dryRun, buildAll, useNapiCross, crossCompile, useCross } =
+    parseArgs();
+
+  let targetsToBuild: Array<{ target: string | undefined; flags: string }> = [];
+
+  if (targetFilter) {
+    const match = TARGET_MATRIX.find((t) => t.target === targetFilter);
+    targetsToBuild = match ? [match] : [{ target: targetFilter, flags: "-x" }];
+  } else if (buildAll) {
+    targetsToBuild = TARGET_MATRIX;
+  } else {
+    targetsToBuild = [{ target: undefined, flags: "" }];
+  }
+
+  console.log(`\n🚀 Starting Local Build Pipeline (${targetsToBuild.length} target(s))...`);
+
+  const cli = new NapiCli();
+
+  for (const { target, flags } of targetsToBuild) {
+    const targetUseNapiCross = useNapiCross || flags.includes("--use-napi-cross");
+    const targetCrossCompile =
+      crossCompile || flags.includes("-x") || flags.includes("--cross-compile");
+    const targetUseCross = useCross || flags.includes("--use-cross");
+
+    console.log(`\n⚙️  Building target: ${target ?? "default host"}`);
+
+    if (dryRun) {
+      console.log(`   [Dry Run] Skipped build execution for ${target ?? "default host"}.`);
+      continue;
+    }
+
+    try {
+      await cli.build({
+        platform: true,
+        esm: true,
+        outputDir: "./dist",
+        release,
+        target,
+        useNapiCross: target ? targetUseNapiCross : useNapiCross,
+        crossCompile: target ? targetCrossCompile : crossCompile,
+        useCross: target ? targetUseCross : useCross,
+      });
+      console.log(`✅ Target ${target ?? "default host"} built successfully.`);
+    } catch (err: any) {
+      console.error(`❌ Target ${target ?? "default host"} failed to build:`, err?.message || err);
+      if (!buildAll) {
+        process.exit(1);
+      }
+    }
+  }
+
+  if (!dryRun) {
+    fs.writeFileSync("index.js", 'export * from "./dist/index.js";\n');
+    fs.writeFileSync("index.d.ts", 'export * from "./dist/index.js";\n');
+  }
+
+  console.log(`\n✨ Build process complete!`);
+}
+
+runCrossBuild().catch((err) => {
+  console.error("Fatal error during build:", err);
   process.exit(1);
 });

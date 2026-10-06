@@ -32,4 +32,21 @@ export default defineConfig({
   run: {
     cache: true,
   },
+  tasks: {
+    build: {
+      command: "node build.ts",
+      cache: {
+        input: [{ auto: true }, "!dist/**"],
+        output: ["dist/**", "index.js", "index.d.ts"],
+      },
+    },
+    ci: {
+      command: "vp check && vp test && node build.ts && vp pack",
+      cache: true,
+    },
+    "ci:cross": {
+      command: "node build.ts --all --dry-run",
+      cache: true,
+    },
+  },
 });
