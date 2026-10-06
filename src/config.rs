@@ -18,7 +18,7 @@ pub struct Config {
 #[napi]
 impl Config {
     /// Creates new [`ConfigBuilder`] instance
-    #[napi(factory)]
+    #[napi]
     pub fn builder() -> ConfigBuilder {
         ConfigBuilder::default()
     }
