@@ -19,6 +19,29 @@ if (native.File) {
   (native.File as any).Format = native.FileFormat;
 }
 
+// Helper methods on primitive prototypes to support .intoString(), .intoInt(), etc.
+if (typeof String.prototype !== "undefined" && !(String.prototype as any).intoString) {
+  (String.prototype as any).intoString = function () {
+    return String(this);
+  };
+}
+if (typeof Number.prototype !== "undefined" && !(Number.prototype as any).intoInt) {
+  (Number.prototype as any).intoInt = function () {
+    return Math.floor(Number(this));
+  };
+  (Number.prototype as any).intoFloat = function () {
+    return Number(this);
+  };
+  (Number.prototype as any).intoUint = function () {
+    return Math.floor(Number(this));
+  };
+}
+if (typeof Boolean.prototype !== "undefined" && !(Boolean.prototype as any).intoBool) {
+  (Boolean.prototype as any).intoBool = function () {
+    return Boolean(this);
+  };
+}
+
 export type Config = Types.Config;
 export type ConfigBuilder = Types.ConfigBuilder;
 export type File = Types.File;
