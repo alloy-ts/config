@@ -45,10 +45,10 @@ impl Environment {
     }
 
     #[napi(factory)]
-    pub fn with_prefix_and_default(prefix: String, default: String) -> Self {
+    pub fn with_prefix_and_default(prefix: String, default_prefix: String) -> Self {
         let mut env = config::Environment::with_prefix(&prefix);
-        if !default.is_empty() {
-            env = env.separator(&default);
+        if !default_prefix.is_empty() {
+            env = env.separator(&default_prefix);
         }
         Self { inner: env }
     }
