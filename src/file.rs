@@ -1,21 +1,65 @@
 use config::{
-    ConfigError, File as InnerFile, FileFormat, FileSourceFile, FileSourceString, Map, Source, Value as ConfigValue,
+    ConfigError, File as InnerFile, FileFormat as InnerFileFormat, FileSourceFile,
+    FileSourceString, Map, Source, Value as ConfigValue,
 };
+use napi::bindgen_prelude::Either;
 use napi_derive::napi;
 use std::path::{Path, PathBuf};
 
 #[napi]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileFormat {
+    Toml,
+    Json,
+    Yaml,
+    Ini,
+    Ron,
+    Json5,
+}
+
+impl From<FileFormat> for InnerFileFormat {
+    fn from(f: FileFormat) -> Self {
+        match f {
+            FileFormat::Toml => InnerFileFormat::Toml,
+            FileFormat::Json => InnerFileFormat::Json,
+            FileFormat::Yaml => InnerFileFormat::Yaml,
+            FileFormat::Ini => InnerFileFormat::Ini,
+            FileFormat::Ron => InnerFileFormat::Ron,
+            FileFormat::Json5 => InnerFileFormat::Json5,
+        }
+    }
+}
+
+pub fn parse_file_format(fmt: Either<FileFormat, String>) -> napi::Result<InnerFileFormat> {
+    match fmt {
+        Either::A(f) => Ok(f.into()),
+        Either::B(s) => match s.to_lowercase().as_str() {
+            "json" => Ok(InnerFileFormat::Json),
+            "toml" => Ok(InnerFileFormat::Toml),
+            "yaml" | "yml" => Ok(InnerFileFormat::Yaml),
+            "ini" => Ok(InnerFileFormat::Ini),
+            "ron" => Ok(InnerFileFormat::Ron),
+            "json5" => Ok(InnerFileFormat::Json5),
+            other => Err(napi::Error::from_reason(format!(
+                "Unsupported file format: {}",
+                other
+            ))),
+        },
+    }
+}
+
+#[napi]
 #[derive(Clone, Debug)]
 pub struct File {
-    pub(crate) inner_name: Option<InnerFile<FileSourceFile, FileFormat>>,
-    pub(crate) inner_str: Option<InnerFile<FileSourceString, FileFormat>>,
+    pub(crate) inner_name: Option<InnerFile<FileSourceFile, InnerFileFormat>>,
+    pub(crate) inner_str: Option<InnerFile<FileSourceString, InnerFileFormat>>,
 }
 
 #[napi]
 impl File {
     #[napi(factory)]
-    pub fn from_str(s: String, format: String) -> napi::Result<File> {
-        let file_format = parse_format(&format)?;
+    pub fn from_str(s: String, format: Either<FileFormat, String>) -> napi::Result<File> {
+        let file_format = parse_file_format(format)?;
         let inner = InnerFile::from_str(&s, file_format);
         Ok(File {
             inner_name: None,
@@ -24,8 +68,8 @@ impl File {
     }
 
     #[napi(factory)]
-    pub fn new(name: String, format: String) -> napi::Result<File> {
-        let file_format = parse_format(&format)?;
+    pub fn new(name: String, format: Either<FileFormat, String>) -> napi::Result<File> {
+        let file_format = parse_file_format(format)?;
         let inner = InnerFile::new(&name, file_format);
         Ok(File {
             inner_name: Some(inner),
@@ -43,8 +87,8 @@ impl File {
     }
 
     #[napi]
-    pub fn format(&mut self, format: String) -> napi::Result<&Self> {
-        let file_format = parse_format(&format)?;
+    pub fn format(&mut self, format: Either<FileFormat, String>) -> napi::Result<&Self> {
+        let file_format = parse_file_format(format)?;
         if let Some(inner) = self.inner_name.take() {
             self.inner_name = Some(inner.format(file_format));
         } else if let Some(inner) = self.inner_str.take() {
@@ -61,20 +105,6 @@ impl File {
             self.inner_str = Some(inner.required(required));
         }
         self
-    }
-}
-
-fn parse_format(format: &str) -> napi::Result<FileFormat> {
-    match format.to_lowercase().as_str() {
-        "json" => Ok(FileFormat::Json),
-        "toml" => Ok(FileFormat::Toml),
-        "yaml" | "yml" => Ok(FileFormat::Yaml),
-        "ini" => Ok(FileFormat::Ini),
-        "ron" => Ok(FileFormat::Ron),
-        other => Err(napi::Error::from_reason(format!(
-            "Unsupported file format: {}",
-            other
-        ))),
     }
 }
 
@@ -119,5 +149,60 @@ impl Source for File {
         } else {
             Ok(())
         }
+    }
+}
+
+#[napi]
+#[derive(Clone, Debug)]
+pub struct Environment {
+    pub(crate) inner: config::Environment,
+}
+
+#[napi]
+impl Environment {
+    #[napi(factory)]
+    pub fn default() -> Self {
+        Self {
+            inner: config::Environment::default(),
+        }
+    }
+
+    #[napi(factory)]
+    pub fn with_prefix(prefix: String) -> Self {
+        Self {
+            inner: config::Environment::with_prefix(&prefix),
+        }
+    }
+
+    #[napi]
+    pub fn separator(&mut self, separator: String) -> &Self {
+        self.inner = self.inner.clone().separator(&separator);
+        self
+    }
+
+    #[napi]
+    pub fn ignore_empty(&mut self, ignore: bool) -> &Self {
+        self.inner = self.inner.clone().ignore_empty(ignore);
+        self
+    }
+
+    #[napi]
+    pub fn keep_prefix(&mut self, keep: bool) -> &Self {
+        self.inner = self.inner.clone().keep_prefix(keep);
+        self
+    }
+}
+
+impl Source for Environment {
+    fn clone_into_box(&self) -> Box<dyn Source + Send + Sync> {
+        Box::new(self.clone())
+    }
+
+    fn collect(&self) -> Result<Map<String, ConfigValue>, ConfigError> {
+        self.inner.collect()
+    }
+
+    fn collect_to(&self, cache: &mut ConfigValue) -> Result<(), ConfigError> {
+        self.inner.collect_to(cache)
     }
 }

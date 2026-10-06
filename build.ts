@@ -1,4 +1,6 @@
 import { NapiCli } from "@napi-rs/cli";
+import fs from "node:fs";
+import path from "node:path";
 
 async function run() {
   const args = process.argv.slice(2);
@@ -21,6 +23,19 @@ async function run() {
     crossCompile,
     useCross,
   });
+
+  const distFiles = fs.readdirSync("./dist");
+  for (const file of distFiles) {
+    if (file.endsWith(".d.ts")) {
+      const filePath = path.join("./dist", file);
+      let content = fs.readFileSync(filePath, "utf-8");
+      content = content.replace(/\bconst enum\b/g, "enum");
+      fs.writeFileSync(filePath, content, "utf-8");
+    }
+    if (file.endsWith(".js") || file.endsWith(".d.ts") || file.endsWith(".node")) {
+      fs.copyFileSync(path.join("./dist", file), path.join(".", file));
+    }
+  }
 }
 
 void run().catch((err) => {

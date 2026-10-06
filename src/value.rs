@@ -2,6 +2,8 @@ use config::{ConfigError, Value as InnerValue};
 use napi_derive::napi;
 use serde::de::{Deserializer, Visitor};
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use std::fmt;
 
 /// A configuration value.
@@ -13,10 +15,11 @@ pub struct Value {
 
 #[napi]
 impl Value {
-    #[napi(factory)]
-    pub fn new(value: serde_json::Value) -> napi::Result<Value> {
-        let inner: InnerValue = serde_json::from_value(value)
+    #[napi(factory, ts_args_type = "value: any, origin?: string")]
+    pub fn new(value: JsonValue, origin: Option<String>) -> napi::Result<Value> {
+        let inner_val: InnerValue = serde_json::from_value(value)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        let inner = InnerValue::new(origin.as_ref(), inner_val.kind);
         Ok(Value { inner })
     }
 
@@ -26,10 +29,10 @@ impl Value {
     }
 
     #[napi]
-    pub fn try_deserialize(&self) -> napi::Result<serde_json::Value> {
+    pub fn try_deserialize(&self) -> napi::Result<JsonValue> {
         self.inner
             .clone()
-            .try_deserialize::<serde_json::Value>()
+            .try_deserialize::<JsonValue>()
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
@@ -50,12 +53,12 @@ impl Value {
     }
 
     #[napi]
-    pub fn into_int128(&self) -> napi::Result<String> {
+    pub fn into_int128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_int128()
-            .map(|i| i.to_string())
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|v| v.try_into().map_err(|_| napi::Error::from_reason("i128 overflow")))
     }
 
     #[napi]
@@ -63,17 +66,17 @@ impl Value {
         self.inner
             .clone()
             .into_uint()
-            .map(|u| u as i64)
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|v| v.try_into().map_err(|_| napi::Error::from_reason("u64 overflow")))
     }
 
     #[napi]
-    pub fn into_uint128(&self) -> napi::Result<String> {
+    pub fn into_uint128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_uint128()
-            .map(|u| u.to_string())
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|v| v.try_into().map_err(|_| napi::Error::from_reason("u128 overflow")))
     }
 
     #[napi]
@@ -103,18 +106,22 @@ impl Value {
     }
 
     #[napi]
-    pub fn into_table(&self) -> napi::Result<serde_json::Value> {
+    pub fn into_table(&self) -> napi::Result<HashMap<String, Value>> {
         let table = self
             .inner
             .clone()
             .into_table()
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        serde_json::Value::deserialize(InnerValue::new(None, table))
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+        let mut map = HashMap::new();
+        for (k, v) in table {
+            map.insert(k, Value { inner: v });
+        }
+        Ok(map)
     }
 }
 
 impl Value {
+    #[allow(dead_code)]
     pub(crate) fn from_inner(inner: InnerValue) -> Self {
         Self { inner }
     }
@@ -152,7 +159,7 @@ impl Serialize for Value {
     where
         S: serde::Serializer,
     {
-        let json_val = serde_json::Value::deserialize(self.inner.clone())
+        let json_val = JsonValue::deserialize(self.inner.clone())
             .map_err(serde::ser::Error::custom)?;
         json_val.serialize(serializer)
     }

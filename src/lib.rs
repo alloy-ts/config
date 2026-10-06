@@ -1,16 +1,16 @@
 #[path = "builder.rs"]
-pub(crate) mod builder;
+pub mod builder;
 
 #[path = "config.rs"]
-pub(crate) mod config;
+pub mod config;
 
 #[path = "file.rs"]
-pub(crate) mod file;
+pub mod file;
 
 #[path = "value.rs"]
-pub(crate) mod value;
+pub mod value;
 
-pub use builder::ConfigBuilder;
-pub use config::Config;
-pub use file::File;
-pub use value::Value;
+pub use builder::*;
+pub use config::*;
+pub use file::*;
+pub use value::*;
