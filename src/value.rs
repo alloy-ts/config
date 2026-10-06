@@ -1,23 +1,38 @@
-use config::{ConfigError, Value as InnerValue};
+use std::collections::HashMap;
 use napi_derive::napi;
-use serde::de::{Deserializer, Visitor};
-use serde::{Deserialize, Serialize};
-use std::fmt;
+use serde_json::Value as JsonValue;
 
-/// A configuration value.
+use crate::json_to_config_value;
+
 #[napi]
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Value {
-    pub(crate) inner: InnerValue,
+    pub(crate) inner: ::config::Value,
 }
 
 #[napi]
 impl Value {
-    #[napi(factory)]
-    pub fn new(value: serde_json::Value) -> napi::Result<Value> {
-        let inner: InnerValue = serde_json::from_value(value)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        Ok(Value { inner })
+    #[napi(constructor)]
+    pub fn new(
+        value: Option<JsonValue>,
+        origin: Option<String>,
+    ) -> napi::Result<Self> {
+        let val = if let Some(v) = value {
+            json_to_config_value(v)?
+        } else {
+            ::config::Value::new(None, ::config::ValueKind::Nil)
+        };
+        Ok(Self {
+            inner: ::config::Value::new(origin.as_ref(), val.kind),
+        })
+    }
+
+    #[napi(factory, js_name = "new")]
+    pub fn new_factory(
+        value: Option<JsonValue>,
+        origin: Option<String>,
+    ) -> napi::Result<Self> {
+        Self::new(value, origin)
     }
 
     #[napi]
@@ -25,15 +40,15 @@ impl Value {
         self.inner.origin().map(|s| s.to_string())
     }
 
-    #[napi]
-    pub fn try_deserialize(&self) -> napi::Result<serde_json::Value> {
+    #[napi(js_name = "tryDeserialize")]
+    pub fn try_deserialize(&self) -> napi::Result<JsonValue> {
         self.inner
             .clone()
-            .try_deserialize::<serde_json::Value>()
+            .try_deserialize::<JsonValue>()
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi]
+    #[napi(js_name = "intoBool")]
     pub fn into_bool(&self) -> napi::Result<bool> {
         self.inner
             .clone()
@@ -41,7 +56,12 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi]
+    #[napi(js_name = "into_bool")]
+    pub fn into_bool_alias(&self) -> napi::Result<bool> {
+        self.into_bool()
+    }
+
+    #[napi(js_name = "intoInt")]
     pub fn into_int(&self) -> napi::Result<i64> {
         self.inner
             .clone()
@@ -49,34 +69,54 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi]
-    pub fn into_int128(&self) -> napi::Result<String> {
+    #[napi(js_name = "into_int")]
+    pub fn into_int_alias(&self) -> napi::Result<i64> {
+        self.into_int()
+    }
+
+    #[napi(js_name = "intoInt128")]
+    pub fn into_int128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_int128()
-            .map(|i| i.to_string())
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("i128 overflow")))
     }
 
-    #[napi]
+    #[napi(js_name = "into_int128")]
+    pub fn into_int128_alias(&self) -> napi::Result<i64> {
+        self.into_int128()
+    }
+
+    #[napi(js_name = "intoUint")]
     pub fn into_uint(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_uint()
-            .map(|u| u as i64)
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("u64 overflow")))
     }
 
-    #[napi]
-    pub fn into_uint128(&self) -> napi::Result<String> {
+    #[napi(js_name = "into_uint")]
+    pub fn into_uint_alias(&self) -> napi::Result<i64> {
+        self.into_uint()
+    }
+
+    #[napi(js_name = "intoUint128")]
+    pub fn into_uint128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_uint128()
-            .map(|u| u.to_string())
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("u128 overflow")))
     }
 
-    #[napi]
+    #[napi(js_name = "into_uint128")]
+    pub fn into_uint128_alias(&self) -> napi::Result<i64> {
+        self.into_uint128()
+    }
+
+    #[napi(js_name = "intoFloat")]
     pub fn into_float(&self) -> napi::Result<f64> {
         self.inner
             .clone()
@@ -84,7 +124,12 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi]
+    #[napi(js_name = "into_float")]
+    pub fn into_float_alias(&self) -> napi::Result<f64> {
+        self.into_float()
+    }
+
+    #[napi(js_name = "intoString")]
     pub fn into_string(&self) -> napi::Result<String> {
         self.inner
             .clone()
@@ -92,227 +137,42 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi]
+    #[napi(js_name = "into_string")]
+    pub fn into_string_alias(&self) -> napi::Result<String> {
+        self.into_string()
+    }
+
+    #[napi(js_name = "intoArray")]
     pub fn into_array(&self) -> napi::Result<Vec<Value>> {
-        let arr = self
+        let array = self
             .inner
             .clone()
             .into_array()
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        Ok(arr.into_iter().map(|v| Value { inner: v }).collect())
+        Ok(array.into_iter().map(|v| Value { inner: v }).collect())
     }
 
-    #[napi]
-    pub fn into_table(&self) -> napi::Result<serde_json::Value> {
+    #[napi(js_name = "into_array")]
+    pub fn into_array_alias(&self) -> napi::Result<Vec<Value>> {
+        self.into_array()
+    }
+
+    #[napi(js_name = "intoTable")]
+    pub fn into_table(&self) -> napi::Result<HashMap<String, Value>> {
         let table = self
             .inner
             .clone()
             .into_table()
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        serde_json::Value::deserialize(InnerValue::new(None, table))
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
-    }
-}
-
-impl Value {
-    pub(crate) fn from_inner(inner: InnerValue) -> Self {
-        Self { inner }
-    }
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner)
-    }
-}
-
-impl From<InnerValue> for Value {
-    fn from(inner: InnerValue) -> Self {
-        Self { inner }
-    }
-}
-
-impl From<Value> for InnerValue {
-    fn from(val: Value) -> Self {
-        val.inner
-    }
-}
-
-impl<'de> Deserialize<'de> for Value {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        InnerValue::deserialize(deserializer).map(|inner| Value { inner })
-    }
-}
-
-impl Serialize for Value {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let json_val = serde_json::Value::deserialize(self.inner.clone())
-            .map_err(serde::ser::Error::custom)?;
-        json_val.serialize(serializer)
-    }
-}
-
-impl<'de> Deserializer<'de> for Value {
-    type Error = ConfigError;
-
-    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_any(visitor)
+        let mut map = HashMap::new();
+        for (k, v) in table {
+            map.insert(k, Value { inner: v });
+        }
+        Ok(map)
     }
 
-    fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_bool(visitor)
-    }
-
-    fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_i8(visitor)
-    }
-
-    fn deserialize_i16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_i16(visitor)
-    }
-
-    fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_i32(visitor)
-    }
-
-    fn deserialize_i64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_i64(visitor)
-    }
-
-    fn deserialize_u8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_u8(visitor)
-    }
-
-    fn deserialize_u16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_u16(visitor)
-    }
-
-    fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_u32(visitor)
-    }
-
-    fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_u64(visitor)
-    }
-
-    fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_f32(visitor)
-    }
-
-    fn deserialize_f64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_f64(visitor)
-    }
-
-    fn deserialize_char<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_char(visitor)
-    }
-
-    fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_str(visitor)
-    }
-
-    fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_string(visitor)
-    }
-
-    fn deserialize_bytes<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_bytes(visitor)
-    }
-
-    fn deserialize_byte_buf<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_byte_buf(visitor)
-    }
-
-    fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_option(visitor)
-    }
-
-    fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_unit(visitor)
-    }
-
-    fn deserialize_unit_struct<V: Visitor<'de>>(
-        self,
-        name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_unit_struct(name, visitor)
-    }
-
-    fn deserialize_newtype_struct<V: Visitor<'de>>(
-        self,
-        name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_newtype_struct(name, visitor)
-    }
-
-    fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_seq(visitor)
-    }
-
-    fn deserialize_tuple<V: Visitor<'de>>(
-        self,
-        len: usize,
-        visitor: V,
-    ) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_tuple(len, visitor)
-    }
-
-    fn deserialize_tuple_struct<V: Visitor<'de>>(
-        self,
-        name: &'static str,
-        len: usize,
-        visitor: V,
-    ) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_tuple_struct(name, len, visitor)
-    }
-
-    fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_map(visitor)
-    }
-
-    fn deserialize_struct<V: Visitor<'de>>(
-        self,
-        name: &'static str,
-        fields: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_struct(name, fields, visitor)
-    }
-
-    fn deserialize_enum<V: Visitor<'de>>(
-        self,
-        name: &'static str,
-        variants: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_enum(name, variants, visitor)
-    }
-
-    fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_identifier(visitor)
-    }
-
-    fn deserialize_ignored_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
-        self.inner.deserialize_ignored_any(visitor)
-    }
-
-    fn deserialize_i128<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        self.inner.deserialize_i128(visitor)
-    }
-
-    fn deserialize_u128<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        self.inner.deserialize_u128(visitor)
-    }
-
-    fn is_human_readable(&self) -> bool {
-        self.inner.is_human_readable()
+    #[napi(js_name = "into_table")]
+    pub fn into_table_alias(&self) -> napi::Result<HashMap<String, Value>> {
+        self.into_table()
     }
 }

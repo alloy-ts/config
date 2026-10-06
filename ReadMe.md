@@ -1,22 +1,37 @@
 # @alloy-ts/config
 
-TypeScript/JavaScript bindings for Rust configuration management via NAPI-RS.
+TypeScript/JavaScript bindings for Rust configuration management (`config` crate) via NAPI-RS.
+
+## Features
+
+- Layered and hierarchical configuration management
+- Multiple configuration sources (`Config.File`, `Environment`, defaults, overrides)
+- Support for JSON, TOML, YAML, INI, RON, and JSON5 formats
+- Strong TypeScript type definitions generated automatically
 
 ## Usage
 
 ```typescript
-import { Config, File } from "@alloy-ts/config";
+import { Config } from "@alloy-ts/config";
 
-// Build configuration using builder pattern
+// Build configuration using builder pattern with Config.File
 const config = Config.builder()
   .setDefault("default", "1")
-  .addSource(File.new("config/settings", "json"))
+  .addSource(new Config.File("config/settings", Config.File.Format.Json))
   .setOverride("override", "1")
   .build();
 
 // Retrieve configuration values
 const defaultValue = config.getString("default");
 const overrideValue = config.getString("override");
+```
+
+## Running Examples
+
+Execute the config-file example:
+
+```bash
+npx vp exec node examples/config-file.ts
 ```
 
 ## Development
@@ -30,7 +45,7 @@ npm run prepare
 - Install dependencies:
 
 ```bash
-vp install
+npm install
 ```
 
 - Run the unit tests:
@@ -39,26 +54,8 @@ vp install
 vp test
 ```
 
-- Build the library:
+- Build the native bindings:
 
 ```bash
-npm run build
-```
-
-- Code formatting:
-
-```bash
-npm run fmt
-```
-
-- Linting:
-
-```bash
-npm run lint
-```
-
-- Code check:
-
-```bash
-npm run check
+npx napi build --platform --esm --output-dir ./dist
 ```
