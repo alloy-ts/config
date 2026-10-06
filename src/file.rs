@@ -1,88 +1,125 @@
 use config::{
-    ConfigError, File as InnerFile, FileFormat, FileSourceFile, FileSourceString, Map, Source, Value as ConfigValue,
+    ConfigError, File as InnerFile, FileFormat as InnerFileFormat, FileSourceFile,
+    FileSourceString, Map, Source, Value as ConfigValue,
 };
+use napi::bindgen_prelude::Either;
 use napi_derive::napi;
 use std::path::{Path, PathBuf};
 
 #[napi]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileFormat {
+    Toml,
+    Json,
+    Yaml,
+    Ini,
+    Ron,
+    Json5,
+}
+
+impl From<FileFormat> for InnerFileFormat {
+    fn from(f: FileFormat) -> Self {
+        match f {
+            FileFormat::Toml => InnerFileFormat::Toml,
+            FileFormat::Json => InnerFileFormat::Json,
+            FileFormat::Yaml => InnerFileFormat::Yaml,
+            FileFormat::Ini => InnerFileFormat::Ini,
+            FileFormat::Ron => InnerFileFormat::Ron,
+            FileFormat::Json5 => InnerFileFormat::Json5,
+        }
+    }
+}
+
+impl TryFrom<&str> for FileFormat {
+    type Error = napi::Error;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "json" => Ok(FileFormat::Json),
+            "toml" => Ok(FileFormat::Toml),
+            "yaml" | "yml" => Ok(FileFormat::Yaml),
+            "ini" => Ok(FileFormat::Ini),
+            "ron" => Ok(FileFormat::Ron),
+            "json5" => Ok(FileFormat::Json5),
+            other => Err(napi::Error::from_reason(format!(
+                "Unsupported file format: {other}"
+            ))),
+        }
+    }
+}
+
+pub(crate) fn parse_format(either: Either<FileFormat, String>) -> napi::Result<InnerFileFormat> {
+    match either {
+        Either::A(ff) => Ok(ff.into()),
+        Either::B(s) => FileFormat::try_from(s.as_str()).map(Into::into),
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum InnerFileKind {
+    File(InnerFile<FileSourceFile, InnerFileFormat>),
+    Str(InnerFile<FileSourceString, InnerFileFormat>),
+}
+
+#[napi]
 #[derive(Clone, Debug)]
 pub struct File {
-    pub(crate) inner_name: Option<InnerFile<FileSourceFile, FileFormat>>,
-    pub(crate) inner_str: Option<InnerFile<FileSourceString, FileFormat>>,
+    pub(crate) inner: Option<InnerFileKind>,
 }
 
 #[napi]
 impl File {
-    #[napi(factory)]
-    pub fn from_str(s: String, format: String) -> napi::Result<File> {
-        let file_format = parse_format(&format)?;
+    #[napi(factory, js_name = "fromStr")]
+    pub fn from_str(s: String, format: Either<FileFormat, String>) -> napi::Result<File> {
+        let file_format = parse_format(format)?;
         let inner = InnerFile::from_str(&s, file_format);
         Ok(File {
-            inner_name: None,
-            inner_str: Some(inner),
+            inner: Some(InnerFileKind::Str(inner)),
         })
     }
 
     #[napi(factory)]
-    pub fn new(name: String, format: String) -> napi::Result<File> {
-        let file_format = parse_format(&format)?;
+    pub fn new(name: String, format: Either<FileFormat, String>) -> napi::Result<File> {
+        let file_format = parse_format(format)?;
         let inner = InnerFile::new(&name, file_format);
         Ok(File {
-            inner_name: Some(inner),
-            inner_str: None,
+            inner: Some(InnerFileKind::File(inner)),
         })
     }
 
-    #[napi(factory)]
+    #[napi(factory, js_name = "withName")]
     pub fn with_name(base_name: String) -> File {
         let inner = InnerFile::with_name(&base_name);
         File {
-            inner_name: Some(inner),
-            inner_str: None,
+            inner: Some(InnerFileKind::File(inner)),
         }
     }
 
     #[napi]
-    pub fn format(&mut self, format: String) -> napi::Result<&Self> {
-        let file_format = parse_format(&format)?;
-        if let Some(inner) = self.inner_name.take() {
-            self.inner_name = Some(inner.format(file_format));
-        } else if let Some(inner) = self.inner_str.take() {
-            self.inner_str = Some(inner.format(file_format));
+    pub fn format(&mut self, format: Either<FileFormat, String>) -> napi::Result<&Self> {
+        let file_format = parse_format(format)?;
+        match self.inner.take() {
+            Some(InnerFileKind::File(f)) => self.inner = Some(InnerFileKind::File(f.format(file_format))),
+            Some(InnerFileKind::Str(f)) => self.inner = Some(InnerFileKind::Str(f.format(file_format))),
+            None => {}
         }
         Ok(self)
     }
 
     #[napi]
     pub fn required(&mut self, required: bool) -> &Self {
-        if let Some(inner) = self.inner_name.take() {
-            self.inner_name = Some(inner.required(required));
-        } else if let Some(inner) = self.inner_str.take() {
-            self.inner_str = Some(inner.required(required));
+        match self.inner.take() {
+            Some(InnerFileKind::File(f)) => self.inner = Some(InnerFileKind::File(f.required(required))),
+            Some(InnerFileKind::Str(f)) => self.inner = Some(InnerFileKind::Str(f.required(required))),
+            None => {}
         }
         self
-    }
-}
-
-fn parse_format(format: &str) -> napi::Result<FileFormat> {
-    match format.to_lowercase().as_str() {
-        "json" => Ok(FileFormat::Json),
-        "toml" => Ok(FileFormat::Toml),
-        "yaml" | "yml" => Ok(FileFormat::Yaml),
-        "ini" => Ok(FileFormat::Ini),
-        "ron" => Ok(FileFormat::Ron),
-        other => Err(napi::Error::from_reason(format!(
-            "Unsupported file format: {}",
-            other
-        ))),
     }
 }
 
 impl From<&Path> for File {
     fn from(path: &Path) -> Self {
         File {
-            inner_name: Some(InnerFile::from(path)),
-            inner_str: None,
+            inner: Some(InnerFileKind::File(InnerFile::from(path))),
         }
     }
 }
@@ -90,8 +127,7 @@ impl From<&Path> for File {
 impl From<PathBuf> for File {
     fn from(path: PathBuf) -> Self {
         File {
-            inner_name: Some(InnerFile::from(path)),
-            inner_str: None,
+            inner: Some(InnerFileKind::File(InnerFile::from(path))),
         }
     }
 }
@@ -102,22 +138,18 @@ impl Source for File {
     }
 
     fn collect(&self) -> Result<Map<String, ConfigValue>, ConfigError> {
-        if let Some(ref inner) = self.inner_name {
-            inner.collect()
-        } else if let Some(ref inner) = self.inner_str {
-            inner.collect()
-        } else {
-            Ok(Map::new())
+        match &self.inner {
+            Some(InnerFileKind::File(f)) => f.collect(),
+            Some(InnerFileKind::Str(f)) => f.collect(),
+            None => Ok(Map::new()),
         }
     }
 
     fn collect_to(&self, cache: &mut ConfigValue) -> Result<(), ConfigError> {
-        if let Some(ref inner) = self.inner_name {
-            inner.collect_to(cache)
-        } else if let Some(ref inner) = self.inner_str {
-            inner.collect_to(cache)
-        } else {
-            Ok(())
+        match &self.inner {
+            Some(InnerFileKind::File(f)) => f.collect_to(cache),
+            Some(InnerFileKind::Str(f)) => f.collect_to(cache),
+            None => Ok(()),
         }
     }
 }

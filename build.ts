@@ -1,4 +1,5 @@
 import { NapiCli } from "@napi-rs/cli";
+import * as fs from "node:fs";
 
 async function run() {
   const args = process.argv.slice(2);
@@ -21,6 +22,13 @@ async function run() {
     crossCompile,
     useCross,
   });
+
+  if (fs.existsSync("./dist/index.d.ts")) {
+    fs.copyFileSync("./dist/index.d.ts", "./index.d.ts");
+  }
+  if (fs.existsSync("./dist/index.js")) {
+    fs.copyFileSync("./dist/index.js", "./index.js");
+  }
 }
 
 void run().catch((err) => {

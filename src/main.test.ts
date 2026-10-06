@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { Config, ConfigBuilder, Environment, File, FileFormat, Value } from "../dist/index.js";
+import { Config, ConfigBuilder, Environment, File, FileFormat, Value } from "../dist/main.mjs";
 
 test("ConfigBuilder sets defaults, overrides, and builds Config", () => {
   const builder = new ConfigBuilder();
