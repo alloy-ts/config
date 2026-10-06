@@ -1,6 +1,30 @@
-# Starter Template
+# @alloy-ts/config (`alloy_config`)
 
-TypeScript starter template.
+Hierarchical or layered configuration management library for Rust and TypeScript applications.
+
+## Usage Example
+
+```typescript
+import { ConfigBuilder, File, FileFormat } from "@alloy-ts/config";
+
+const file = File.fromStr('{"env": "development"}', FileFormat.Json);
+
+const config = new ConfigBuilder()
+  .setDefault("default", "1")
+  .addSource(file)
+  .setOverride("override", "1")
+  .build();
+
+console.log(config.getString("default")); // "1"
+console.log(config.getString("env"));     // "development"
+console.log(config.getString("override"));// "1"
+```
+
+## Running Examples
+
+```bash
+vp exec node examples/config-builder.ts
+```
 
 ## Development
 
