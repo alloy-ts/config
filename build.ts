@@ -21,6 +21,17 @@ async function run() {
     crossCompile,
     useCross,
   });
+
+  const { existsSync, readFileSync, writeFileSync } = await import("node:fs");
+  if (existsSync("./dist/index.d.ts")) {
+    let content = readFileSync("./dist/index.d.ts", "utf-8");
+    content = content.replace(
+      /export declare const enum FileFormat/g,
+      "export declare enum FileFormat",
+    );
+    writeFileSync("./dist/index.d.ts", content, "utf-8");
+    writeFileSync("./src/types.d.ts", content, "utf-8");
+  }
 }
 
 void run().catch((err) => {

@@ -1,8 +1,8 @@
 import { createRequire } from "node:module";
-import type * as Types from "../index.d.ts";
+import type * as Types from "./types.d.ts";
 
 const require = createRequire(import.meta.url);
-const native = require("../index.js");
+const native = require("../dist/index.js");
 
 export const Config: typeof Types.Config = native.Config;
 export const ConfigBuilder: typeof Types.ConfigBuilder = native.ConfigBuilder;
