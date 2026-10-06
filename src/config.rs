@@ -20,7 +20,7 @@ pub struct Config {
 #[napi]
 impl Config {
     /// Creates new [`ConfigBuilder`] instance
-    #[napi(factory)]
+    #[napi(ts_return_type = "ConfigBuilder")]
     pub fn builder() -> ConfigBuilder {
         ConfigBuilder::default()
     }

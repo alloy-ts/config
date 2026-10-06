@@ -21,6 +21,21 @@ async function run() {
     crossCompile,
     useCross,
   });
+
+  const { copyFileSync, existsSync, readdirSync } = await import("node:fs");
+  if (existsSync("./dist/index.js")) {
+    copyFileSync("./dist/index.js", "./index.js");
+  }
+  if (existsSync("./dist/index.d.ts")) {
+    copyFileSync("./dist/index.d.ts", "./index.d.ts");
+  }
+  if (existsSync("./dist")) {
+    for (const file of readdirSync("./dist")) {
+      if (file.endsWith(".node")) {
+        copyFileSync(`./dist/${file}`, `./${file}`);
+      }
+    }
+  }
 }
 
 void run().catch((err) => {
