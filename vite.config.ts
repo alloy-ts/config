@@ -5,6 +5,7 @@ export default defineConfig({
     entry: ["./src/main.ts"],
     format: "esm",
     outDir: "dist",
+    clean: false,
     exports: true,
     dts: {
       generator: "tsgo",
@@ -20,10 +21,10 @@ export default defineConfig({
     "*": "vp check --fix",
   },
   fmt: {
-    ignore: ["examples/**"],
+    ignore: ["examples/**", "index.d.ts", "index.js"],
   },
   lint: {
-    ignorePatterns: ["examples/**"],
+    ignorePatterns: ["examples/**", "index.d.ts", "index.js"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
     options: { typeAware: true, typeCheck: true },

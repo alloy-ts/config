@@ -3,6 +3,8 @@ build
 out
 dist
 target
+index.d.ts
+index.js
 *.node
 *.wasm
 *.wasi.cjs
@@ -18,3 +20,4 @@ node_modules
 # log files
 logs
 *.log
+.vitest/
