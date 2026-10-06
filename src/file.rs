@@ -4,7 +4,7 @@ use napi_derive::napi;
 
 use crate::BoxedSource;
 
-#[napi(string_enum)]
+#[napi]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileFormat {
     Ini,
