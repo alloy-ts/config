@@ -3,7 +3,7 @@ use config::ConfigBuilder as InnerConfigBuilder;
 use napi::Either;
 use napi_derive::napi;
 
-use crate::configuration::Config;
+use crate::config::Config;
 use crate::file::File;
 use crate::value::to_napi_err;
 use crate::BoxedSource;
