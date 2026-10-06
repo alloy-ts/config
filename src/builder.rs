@@ -3,11 +3,11 @@ use config::ConfigBuilder as InnerConfigBuilder;
 use napi::Either;
 use napi_derive::napi;
 
-use crate::configuration::Config;
+use crate::config::Config;
 use crate::file::File;
+use crate::json_to_config_value;
 use crate::value::to_napi_err;
 use crate::BoxedSource;
-use crate::json_to_config_value;
 
 /// A configuration builder.
 #[napi]
@@ -70,6 +70,11 @@ impl ConfigBuilder {
         };
         self.inner = self.inner.clone().add_source(boxed);
         Ok(self)
+    }
+
+    #[napi]
+    pub fn add_async_source(&mut self, source: Either<&File, &Environment>) -> napi::Result<&Self> {
+        self.add_source(source)
     }
 
     #[napi]

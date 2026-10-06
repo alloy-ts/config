@@ -21,6 +21,10 @@ async function run() {
     crossCompile,
     useCross,
   });
+
+  const fs = await import("node:fs");
+  fs.writeFileSync("index.js", 'export * from "./dist/index.js";\n');
+  fs.writeFileSync("index.d.ts", 'export * from "./dist/index.js";\n');
 }
 
 void run().catch((err) => {

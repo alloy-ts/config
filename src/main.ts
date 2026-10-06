@@ -8,7 +8,14 @@ export const Config: typeof Types.Config = native.Config;
 export const ConfigBuilder: typeof Types.ConfigBuilder = native.ConfigBuilder;
 export const File: typeof Types.File = native.File;
 export const Environment: typeof Types.Environment = native.Environment;
-export const FileFormat: typeof Types.FileFormat = native.FileFormat;
+export const FileFormat = {
+  Ini: 0,
+  Json: 1,
+  Json5: 2,
+  Ron: 3,
+  Toml: 4,
+  Yaml: 5,
+} as const;
 export const Value: typeof Types.Value = native.Value;
 
 export type Config = Types.Config;

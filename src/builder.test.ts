@@ -1,10 +1,13 @@
 import assert from "node:assert";
 import { describe, it } from "vite-plus/test";
-import { Config, ConfigBuilder, File, FileFormat } from "../index.js";
+import { ConfigBuilder, File, FileFormat } from "./main.ts";
 
 describe("ConfigBuilder and NAPI bindings (builder.rs)", () => {
   it("supports new ConfigBuilder() chaining with setDefault, addSource, setOverride, and build", () => {
-    const fileSource = File.fromStr('{"fileKey": "fileVal", "default": "overriddenByFile"}', FileFormat.Json);
+    const fileSource = File.fromStr(
+      '{"fileKey": "fileVal", "default": "overriddenByFile"}',
+      FileFormat.Json,
+    );
     const config = new ConfigBuilder()
       .setDefault("default", "1")
       .addSource(fileSource)
@@ -60,10 +63,7 @@ describe("ConfigBuilder and NAPI bindings (builder.rs)", () => {
     const f2 = new File("non_existent_file", FileFormat.Json);
     f2.required(false);
 
-    const config = new ConfigBuilder()
-      .addSource(f1)
-      .addSource(f2)
-      .build();
+    const config = new ConfigBuilder().addSource(f1).addSource(f2).build();
 
     assert.strictEqual(config.getInt("x"), 10);
   });
