@@ -1,3 +1,4 @@
+import { copyFileSync, existsSync, readdirSync } from "node:fs";
 import { NapiCli } from "@napi-rs/cli";
 
 async function run() {
@@ -20,10 +21,22 @@ async function run() {
     useNapiCross,
     crossCompile,
     useCross,
+    constEnum: false,
   });
+
+  if (existsSync("./dist")) {
+    const files = readdirSync("./dist");
+    console.log("Dist files after build:", files);
+    for (const file of files) {
+      if (file.endsWith(".node") || file === "index.d.ts" || file === "index.js") {
+        console.log(`Copying ./dist/${file} to ./${file}`);
+        copyFileSync(`./dist/${file}`, `./${file}`);
+      }
+    }
+  }
 }
 
-void run().catch((err) => {
+run().catch((err) => {
   console.error(err);
   process.exit(1);
 });

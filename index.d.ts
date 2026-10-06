@@ -7,6 +7,84 @@
  * flavor napi-rs can build is listed, because `NAPI_RS_NATIVE_LIBRARY_PATH`
  * can point the loader at a WASI artifact this package does not build itself.
  */
-export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
+export declare const __napiBindingTarget: "native" | "wasm32-wasi" | "wasm32-wasip1";
 
-export declare function add(left: number, right: number): number
+export declare class Config {
+  static builder(): ConfigBuilder;
+  static tryFrom(from: any): Config;
+  get(key: string): any;
+  getString(key: string): string;
+  getInt(key: string): number;
+  getFloat(key: string): number;
+  getBool(key: string): boolean;
+  getTable(key: string): Record<string, any>;
+  getArray(key: string): Array<any>;
+  tryDeserialize(): any;
+}
+
+export declare class ConfigBuilder {
+  constructor();
+  setDefault(key: string, value: any): this;
+  setOverride(key: string, value: any): this;
+  setOverrideOption(key: string, value?: any | undefined | null): this;
+  addFile(file: File): this;
+  addEnvironment(env: Environment): this;
+  addSource(source: File | Environment): this;
+  build(): Config;
+  buildCloned(): Config;
+}
+
+export declare class Environment {
+  static withPrefix(prefix: string): Environment;
+  static default(): Environment;
+  separator(separator: string): this;
+  ignoreEmpty(ignore: boolean): this;
+  keepPrefix(keep: boolean): this;
+}
+
+export declare class File {
+  constructor(name: string, format?: FileFormat | undefined | null);
+  static withName(baseName: string): File;
+  static fromStr(s: string, format: FileFormat): File;
+  format(format: FileFormat): this;
+  required(required: boolean): this;
+}
+
+export declare class FileSourceFile {
+  name: string;
+}
+
+export declare class FileSourceString {
+  content: string;
+}
+
+export declare class Value {
+  constructor(val: any, origin?: string | null);
+  get kind(): ValueKind;
+  origin(): string | null;
+  tryDeserialize(): Value;
+  intoBool(): boolean;
+  intoInt(): number;
+  intoInt128(): string;
+  intoUint(): number;
+  intoUint128(): string;
+  intoFloat(): number;
+  intoString(): string;
+  intoArray(): Array<Value>;
+  intoTable(): Record<string, Value>;
+  toString(): string;
+}
+
+export type FileFormat = "Toml" | "Json" | "Json5" | "Ron" | "Yaml" | "Ini";
+
+export type ValueKind =
+  | "Nil"
+  | "Boolean"
+  | "I64"
+  | "I128"
+  | "U64"
+  | "U128"
+  | "Float"
+  | "String"
+  | "Table"
+  | "Array";

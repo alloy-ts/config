@@ -1,6 +1,13 @@
-use napi_derive::napi;
+#![deny(clippy::all)]
 
-#[napi]
-pub fn add(left: i32, right: i32) -> i32 {
-  left + right
-}
+#[path = "builder.rs"]
+pub(crate) mod builder;
+
+#[path = "config.rs"]
+pub(crate) mod config;
+
+#[path = "file.rs"]
+pub(crate) mod file;
+
+#[path = "value.rs"]
+pub(crate) mod value;
