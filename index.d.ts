@@ -7,6 +7,63 @@
  * flavor napi-rs can build is listed, because `NAPI_RS_NATIVE_LIBRARY_PATH`
  * can point the loader at a WASI artifact this package does not build itself.
  */
-export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
+export declare const __napiBindingTarget: "native" | "wasm32-wasi" | "wasm32-wasip1";
 
-export declare function add(left: number, right: number): number
+export declare class Config {
+  static builder(): ConfigBuilder;
+  static try_from(from: unknown): Config;
+  get(key: string): unknown;
+  get_string(key: string): string;
+  get_int(key: string): number;
+  get_float(key: string): number;
+  get_bool(key: string): boolean;
+  get_table(key: string): Record<string, any>;
+  get_array(key: string): Array<any>;
+  try_deserialize(): unknown;
+}
+
+export declare class ConfigBuilder {
+  constructor();
+  set_default(key: string, value: any | unknown): this;
+  set_override(key: string, value: any | unknown): this;
+  set_override_option(key: string, value?: any | unknown | undefined | null): this;
+  add_source(source: File | Environment | Config): this;
+  build(): Config;
+  build_cloned(): Config;
+}
+
+export declare class Environment {
+  constructor();
+  static with_prefix(prefix: string): Environment;
+  separator(separator: string): this;
+  keep_prefix(keep: boolean): this;
+}
+
+export declare class File {
+  static with_name(name: string): File;
+  static from_str(content: string, format: FileFormat): File;
+}
+
+export declare class Value {
+  constructor(origin?: string | undefined | null, value?: unknown | undefined | null);
+  origin(): string | null;
+  into_bool(): boolean;
+  into_int(): number;
+  into_int128(): number;
+  into_uint(): number;
+  into_uint128(): number;
+  into_float(): number;
+  into_string(): string;
+  into_array(): Array<Value>;
+  into_table(): Record<string, Value>;
+  try_deserialize(): unknown;
+}
+
+export declare const enum FileFormat {
+  Toml = 0,
+  Json = 1,
+  Json5 = 2,
+  Ron = 3,
+  Yaml = 4,
+  Ini = 5,
+}
