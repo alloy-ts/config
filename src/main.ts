@@ -1,23 +1,49 @@
 import { createRequire } from "node:module";
-import type * as Types from "../index.d.ts";
+import type * as Types from "../dist/index.d.ts";
 
 const require = createRequire(import.meta.url);
-const native = require("../index.js");
+const native = require("../dist/index.js");
 
-export const Config: typeof Types.Config = native.Config;
+function makeChainable(cls: any, methods: string[]) {
+  for (const method of methods) {
+    const orig = cls.prototype[method];
+    if (typeof orig === "function") {
+      cls.prototype[method] = function (this: any, ...args: any[]) {
+        orig.apply(this, args);
+        return this;
+      };
+    }
+  }
+}
+
+makeChainable(native.ConfigBuilder, [
+  "setDefault",
+  "setOverride",
+  "setOverrideOption",
+  "addSource",
+]);
+makeChainable(native.Environment, ["prefix", "separator", "ignoreEmpty", "keepPrefix"]);
+makeChainable(native.File, ["format", "required"]);
+
+export const FileFormat: {
+  readonly Toml: 0;
+  readonly Json: 1;
+  readonly Yaml: 2;
+  readonly Ini: 3;
+  readonly Ron: 4;
+  readonly Json5: 5;
+} = native.FileFormat;
+
+export const Config: typeof Types.Config & {
+  File: typeof Types.File & { Format: typeof FileFormat };
+} = native.Config;
 export const ConfigBuilder: typeof Types.ConfigBuilder = native.ConfigBuilder;
-export const File: typeof Types.File = native.File;
+export const File: typeof Types.File & { Format: typeof FileFormat } = native.File;
 export const Environment: typeof Types.Environment = native.Environment;
 export const Value: typeof Types.Value = native.Value;
 
-export const FileFormat = native.FileFormat as {
-  readonly Ini: Types.FileFormat.Ini;
-  readonly Json: Types.FileFormat.Json;
-  readonly Json5: Types.FileFormat.Json5;
-  readonly Ron: Types.FileFormat.Ron;
-  readonly Toml: Types.FileFormat.Toml;
-  readonly Yaml: Types.FileFormat.Yaml;
-};
+(File as any).Format = FileFormat;
+(Config as any).File = File;
 
 export type Config = Types.Config;
 export type ConfigBuilder = Types.ConfigBuilder;

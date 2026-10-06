@@ -1,4 +1,4 @@
-use config::{
+use ::config::{
     ConfigError, File as InnerFile, FileFormat as InnerFileFormat, FileSourceFile,
     FileSourceString, Map, Source, Value as ConfigValue,
 };
@@ -32,7 +32,7 @@ impl From<FileFormat> for InnerFileFormat {
 
 impl TryFrom<&str> for FileFormat {
     type Error = napi::Error;
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn try_from(s: &str) -> std::result::Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
             "json" => Ok(FileFormat::Json),
             "toml" => Ok(FileFormat::Toml),
@@ -77,7 +77,7 @@ impl File {
         })
     }
 
-    #[napi(factory)]
+    #[napi(constructor)]
     pub fn new(name: String, format: Either<FileFormat, String>) -> napi::Result<File> {
         let file_format = parse_format(format)?;
         let inner = InnerFile::new(&name, file_format);
@@ -94,25 +94,24 @@ impl File {
         }
     }
 
-    #[napi]
-    pub fn format(&mut self, format: Either<FileFormat, String>) -> napi::Result<&Self> {
+    #[napi(ts_return_type = "File")]
+    pub fn format(&mut self, format: Either<FileFormat, String>) -> napi::Result<()> {
         let file_format = parse_format(format)?;
         match self.inner.take() {
             Some(InnerFileKind::File(f)) => self.inner = Some(InnerFileKind::File(f.format(file_format))),
             Some(InnerFileKind::Str(f)) => self.inner = Some(InnerFileKind::Str(f.format(file_format))),
             None => {}
         }
-        Ok(self)
+        Ok(())
     }
 
-    #[napi]
-    pub fn required(&mut self, required: bool) -> &Self {
+    #[napi(ts_return_type = "File")]
+    pub fn required(&mut self, required: bool) {
         match self.inner.take() {
             Some(InnerFileKind::File(f)) => self.inner = Some(InnerFileKind::File(f.required(required))),
             Some(InnerFileKind::Str(f)) => self.inner = Some(InnerFileKind::Str(f.required(required))),
             None => {}
         }
-        self
     }
 }
 
@@ -137,7 +136,7 @@ impl Source for File {
         Box::new(self.clone())
     }
 
-    fn collect(&self) -> Result<Map<String, ConfigValue>, ConfigError> {
+    fn collect(&self) -> std::result::Result<Map<String, ConfigValue>, ConfigError> {
         match &self.inner {
             Some(InnerFileKind::File(f)) => f.collect(),
             Some(InnerFileKind::Str(f)) => f.collect(),
@@ -145,7 +144,7 @@ impl Source for File {
         }
     }
 
-    fn collect_to(&self, cache: &mut ConfigValue) -> Result<(), ConfigError> {
+    fn collect_to(&self, cache: &mut ConfigValue) -> std::result::Result<(), ConfigError> {
         match &self.inner {
             Some(InnerFileKind::File(f)) => f.collect_to(cache),
             Some(InnerFileKind::Str(f)) => f.collect_to(cache),

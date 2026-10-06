@@ -1,13 +1,11 @@
-use config::builder::DefaultState as InnerDefaultState;
-use config::ConfigBuilder as InnerConfigBuilder;
-use napi::Either;
+use ::config::builder::DefaultState as InnerDefaultState;
+use ::config::ConfigBuilder as InnerConfigBuilder;
+use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
 use crate::config::Config;
 use crate::file::File;
-use crate::value::to_napi_err;
-use crate::BoxedSource;
-use crate::json_to_config_value;
+use crate::value::{json_to_config_value, to_napi_err};
 
 /// A configuration builder.
 #[napi]
@@ -23,34 +21,42 @@ impl ConfigBuilder {
         Self::default()
     }
 
-    #[napi]
-    pub fn set_default(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
+    #[napi(ts_return_type = "ConfigBuilder")]
+    pub fn set_default(
+        &mut self,
+        key: String,
+        value: serde_json::Value,
+    ) -> napi::Result<()> {
         let val = json_to_config_value(value)?;
         self.inner = self
             .inner
             .clone()
             .set_default(&key, val)
             .map_err(to_napi_err)?;
-        Ok(self)
+        Ok(())
     }
 
-    #[napi]
-    pub fn set_override(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
+    #[napi(ts_return_type = "ConfigBuilder")]
+    pub fn set_override(
+        &mut self,
+        key: String,
+        value: serde_json::Value,
+    ) -> napi::Result<()> {
         let val = json_to_config_value(value)?;
         self.inner = self
             .inner
             .clone()
             .set_override(&key, val)
             .map_err(to_napi_err)?;
-        Ok(self)
+        Ok(())
     }
 
-    #[napi]
+    #[napi(ts_return_type = "ConfigBuilder")]
     pub fn set_override_option(
         &mut self,
         key: String,
         value: Option<serde_json::Value>,
-    ) -> napi::Result<&Self> {
+    ) -> napi::Result<()> {
         if let Some(v) = value {
             let val = json_to_config_value(v)?;
             self.inner = self
@@ -59,17 +65,23 @@ impl ConfigBuilder {
                 .set_override_option(&key, Some(val))
                 .map_err(to_napi_err)?;
         }
-        Ok(self)
+        Ok(())
     }
 
-    #[napi]
-    pub fn add_source(&mut self, source: Either<&File, &Environment>) -> napi::Result<&Self> {
-        let boxed = match source {
-            Either::A(file) => file.into_config_source()?,
-            Either::B(env) => env.into_config_source(),
-        };
-        self.inner = self.inner.clone().add_source(boxed);
-        Ok(self)
+    #[napi(ts_return_type = "ConfigBuilder")]
+    pub fn add_source(
+        &mut self,
+        source: Either<&File, &Environment>,
+    ) -> napi::Result<()> {
+        match source {
+            Either::A(file) => {
+                self.inner = self.inner.clone().add_source(file.clone());
+            }
+            Either::B(env) => {
+                self.inner = self.inner.clone().add_source(env.to_config_env());
+            }
+        }
+        Ok(())
     }
 
     #[napi]
@@ -117,32 +129,28 @@ impl Environment {
         Self::default()
     }
 
-    #[napi]
-    pub fn prefix(&mut self, prefix: String) -> &Self {
+    #[napi(ts_return_type = "Environment")]
+    pub fn prefix(&mut self, prefix: String) {
         self.prefix = Some(prefix);
-        self
     }
 
-    #[napi]
-    pub fn separator(&mut self, separator: String) -> &Self {
+    #[napi(ts_return_type = "Environment")]
+    pub fn separator(&mut self, separator: String) {
         self.separator = Some(separator);
-        self
     }
 
-    #[napi]
-    pub fn ignore_empty(&mut self, ignore_empty: bool) -> &Self {
+    #[napi(ts_return_type = "Environment")]
+    pub fn ignore_empty(&mut self, ignore_empty: bool) {
         self.ignore_empty = ignore_empty;
-        self
     }
 
-    #[napi]
-    pub fn keep_prefix(&mut self, keep_prefix: bool) -> &Self {
+    #[napi(ts_return_type = "Environment")]
+    pub fn keep_prefix(&mut self, keep_prefix: bool) {
         self.keep_prefix = keep_prefix;
-        self
     }
 
-    pub(crate) fn into_config_source(&self) -> BoxedSource {
-        let mut env = config::Environment::default();
+    pub(crate) fn to_config_env(&self) -> ::config::Environment {
+        let mut env = ::config::Environment::default();
         if let Some(p) = &self.prefix {
             env = env.prefix(p);
         }
@@ -151,6 +159,6 @@ impl Environment {
         }
         env = env.ignore_empty(self.ignore_empty);
         env = env.keep_prefix(self.keep_prefix);
-        BoxedSource(Box::new(env))
+        env
     }
 }

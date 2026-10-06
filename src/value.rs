@@ -1,6 +1,15 @@
-use config::Value as InnerValue;
+use ::config::Value as InnerValue;
 use napi_derive::napi;
 use std::collections::HashMap;
+
+/// Convert a `serde_json::Value` into a `config::Value`.
+pub(crate) fn json_to_config_value(v: serde_json::Value) -> napi::Result<InnerValue> {
+    serde_json::from_value(v).map_err(|e| napi::Error::from_reason(e.to_string()))
+}
+
+pub(crate) fn to_napi_err(e: ::config::ConfigError) -> napi::Error {
+    napi::Error::from_reason(e.to_string())
+}
 
 /// A configuration value.
 #[napi]
@@ -39,12 +48,12 @@ impl Value {
 
     #[napi]
     pub fn into_bool(&self) -> napi::Result<bool> {
-        self.inner.clone().into_bool().map_err(to_err)
+        self.inner.clone().into_bool().map_err(to_napi_err)
     }
 
     #[napi]
     pub fn into_int(&self) -> napi::Result<i64> {
-        self.inner.clone().into_int().map_err(to_err)
+        self.inner.clone().into_int().map_err(to_napi_err)
     }
 
     #[napi]
@@ -52,7 +61,7 @@ impl Value {
         self.inner
             .clone()
             .into_int128()
-            .map_err(to_err)
+            .map_err(to_napi_err)
             .and_then(|v| v.try_into().map_err(|_| napi::Error::from_reason("i128 overflow")))
     }
 
@@ -61,7 +70,7 @@ impl Value {
         self.inner
             .clone()
             .into_uint()
-            .map_err(to_err)
+            .map_err(to_napi_err)
             .and_then(|v| v.try_into().map_err(|_| napi::Error::from_reason("u64 overflow")))
     }
 
@@ -70,29 +79,29 @@ impl Value {
         self.inner
             .clone()
             .into_uint128()
-            .map_err(to_err)
+            .map_err(to_napi_err)
             .and_then(|v| v.try_into().map_err(|_| napi::Error::from_reason("u128 overflow")))
     }
 
     #[napi]
     pub fn into_float(&self) -> napi::Result<f64> {
-        self.inner.clone().into_float().map_err(to_err)
+        self.inner.clone().into_float().map_err(to_napi_err)
     }
 
     #[napi]
     pub fn into_string(&self) -> napi::Result<String> {
-        self.inner.clone().into_string().map_err(to_err)
+        self.inner.clone().into_string().map_err(to_napi_err)
     }
 
     #[napi]
     pub fn into_array(&self) -> napi::Result<Vec<Value>> {
-        let arr = self.inner.clone().into_array().map_err(to_err)?;
+        let arr = self.inner.clone().into_array().map_err(to_napi_err)?;
         Ok(arr.into_iter().map(Value::from).collect())
     }
 
     #[napi]
     pub fn into_table(&self) -> napi::Result<HashMap<String, Value>> {
-        let table = self.inner.clone().into_table().map_err(to_err)?;
+        let table = self.inner.clone().into_table().map_err(to_napi_err)?;
         Ok(table.into_iter().map(|(k, v)| (k, Value::from(v))).collect())
     }
 }
@@ -102,15 +111,6 @@ impl Value {
     pub(crate) fn from_inner(inner: InnerValue) -> Self {
         Self { inner }
     }
-}
-
-fn to_err(e: config::ConfigError) -> napi::Error {
-    napi::Error::from_reason(e.to_string())
-}
-
-/// Convert a `serde_json::Value` into a `config::Value`.
-pub(crate) fn json_to_config_value(v: serde_json::Value) -> napi::Result<InnerValue> {
-    serde_json::from_value(v).map_err(|e| napi::Error::from_reason(e.to_string()))
 }
 
 impl From<InnerValue> for Value {

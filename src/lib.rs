@@ -17,8 +17,7 @@ pub use file::File;
 pub use file::FileFormat;
 pub use value::Value;
 
-/// Convert a `config` crate `ConfigError` into a NAPI error so that the
-/// underlying message is surfaced to JavaScript callers.
-pub(crate) fn to_napi_err(e: config::ConfigError) -> napi::Error {
+#[allow(dead_code)]
+pub(crate) fn to_napi_err(e: ::config::ConfigError) -> napi::Error {
     napi::Error::from_reason(e.to_string())
 }
