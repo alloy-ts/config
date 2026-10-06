@@ -48,6 +48,16 @@ pub struct File {
 #[napi]
 impl File {
   #[napi(factory)]
+  pub fn new(name: String, format: FileFormat) -> Self {
+    Self {
+      name: Some(name),
+      content: None,
+      format: Some(format),
+      required: true,
+    }
+  }
+
+  #[napi(factory)]
   pub fn with_name(name: String) -> Self {
     Self {
       name: Some(name),

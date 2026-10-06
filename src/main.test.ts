@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { Config, ConfigBuilder, Environment, File, FileFormat } from "../dist/index.js";
+import { Config, ConfigBuilder, Environment, File, FileFormat, Value } from "../dist/index.js";
 
 test("ConfigBuilder sets defaults, overrides, and builds Config", () => {
   const builder = new ConfigBuilder();
@@ -27,7 +27,7 @@ test("Config.builder() static factory works", () => {
   expect(config.getString("key")).toBe("value");
 });
 
-test("Config reading JSON file string source via File.fromStr", () => {
+test("Config reading JSON file string source via File.fromStr and File.new", () => {
   const jsonContent = JSON.stringify({
     app: {
       name: "alloy-test",
@@ -48,6 +48,9 @@ test("Config reading JSON file string source via File.fromStr", () => {
   expect(config.getArray("app.features")).toEqual(["auth", "billing"]);
   expect(config.getTable("app.metadata")).toEqual({ env: "test" });
   expect(config.get("app.name")).toBe("alloy-test");
+
+  const file2 = File.new("config/settings", FileFormat.Json);
+  expect(file2).toBeDefined();
 });
 
 test("Config Environment source", () => {
@@ -81,6 +84,32 @@ test("Config tryDeserialize and Config.tryFrom", () => {
 
   const deserialized = config.tryDeserialize();
   expect(deserialized).toEqual(inputObj);
+});
+
+test("Value class methods", () => {
+  const vBool = Value.new(true, "origin_test");
+  expect(vBool.origin()).toBe("origin_test");
+  expect(vBool.intoBool()).toBe(true);
+
+  const vInt = Value.new(42);
+  expect(vInt.intoInt()).toBe(42);
+  expect(vInt.intoUint()).toBe(42);
+  expect(vInt.intoInt128()).toBe(42);
+
+  const vFloat = Value.new(3.14);
+  expect(vFloat.intoFloat()).toBe(3.14);
+
+  const vString = Value.new("hello");
+  expect(vString.intoString()).toBe("hello");
+
+  const vArray = Value.new([1, 2, 3]);
+  const arr = vArray.intoArray();
+  expect(arr.length).toBe(3);
+  expect(arr[0].intoInt()).toBe(1);
+
+  const vTable = Value.new({ k: "v" });
+  const tbl = vTable.intoTable();
+  expect(tbl.k.intoString()).toBe("v");
 });
 
 test("ConfigBuilder buildCloned allows multiple builds", () => {
