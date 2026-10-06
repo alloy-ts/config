@@ -6,6 +6,7 @@ export default defineConfig({
     format: "esm",
     outDir: "dist",
     exports: true,
+    clean: false,
     dts: {
       generator: "tsgo",
     },
@@ -30,5 +31,20 @@ export default defineConfig({
   },
   run: {
     cache: true,
+  },
+  tasks: {
+    ci: {
+      command: "vp check && vp test && vp run build",
+      cache: {
+        env: ["NODE_ENV", "DEBUG"],
+      },
+    },
+    "build:cross": {
+      command: "npx tsx scripts/cross-build.ts",
+      cache: {
+        input: [{ auto: true }, "!dist/**"],
+        output: ["dist/**"],
+      },
+    },
   },
 });

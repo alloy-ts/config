@@ -77,13 +77,18 @@ impl File {
         })
     }
 
-    #[napi(factory)]
+    #[napi(constructor)]
     pub fn new(name: String, format: Either<FileFormat, String>) -> napi::Result<File> {
         let file_format = parse_format(format)?;
         let inner = InnerFile::new(&name, file_format);
         Ok(File {
             inner: Some(InnerFileKind::File(inner)),
         })
+    }
+
+    #[napi(factory, js_name = "new")]
+    pub fn new_factory(name: String, format: Either<FileFormat, String>) -> napi::Result<File> {
+        Self::new(name, format)
     }
 
     #[napi(factory, js_name = "withName")]

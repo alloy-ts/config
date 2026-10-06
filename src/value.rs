@@ -31,7 +31,7 @@ impl Value {
         self.inner.origin().map(|s| s.to_string())
     }
 
-    #[napi(js_name = "tryDeserialize")]
+    #[napi(js_name = "tryDeserialize", ts_return_type = "any")]
     pub fn try_deserialize(&self) -> napi::Result<serde_json::Value> {
         self.inner
             .clone()
