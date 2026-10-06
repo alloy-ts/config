@@ -65,11 +65,7 @@ impl ConfigBuilder {
 
     #[napi]
     pub fn add_file(&mut self, file_path: String, format: Option<String>) -> napi::Result<&Self> {
-        let file = if let Some(fmt) = format {
-            File::new(file_path, fmt)?
-        } else {
-            File::with_name(file_path)
-        };
+        let file = File::new(file_path, format)?;
         self.inner = self.inner.clone().add_source(file);
         Ok(self)
     }
