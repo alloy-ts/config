@@ -17,7 +17,7 @@ impl Config {
         Self::default()
     }
 
-    #[napi(factory)]
+    #[napi]
     pub fn builder() -> ConfigBuilder {
         ConfigBuilder::new()
     }
