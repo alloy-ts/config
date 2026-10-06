@@ -18,3 +18,10 @@ node_modules
 # log files
 logs
 *.log
+
+# cache
+node-compile-cache
+tsx-*
+.napi-stage*
+tmp
+/tmp
