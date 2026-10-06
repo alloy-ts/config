@@ -40,6 +40,7 @@ export declare class Environment {
 }
 
 export declare class File {
+  constructor(name: string, format: FileFormat);
   static with_name(name: string): File;
   static from_str(content: string, format: FileFormat): File;
 }

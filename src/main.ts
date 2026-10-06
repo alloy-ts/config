@@ -4,12 +4,20 @@ import type * as Types from "../index.d.ts";
 const require = createRequire(import.meta.url);
 const native = require("../index.js");
 
-export const Config: typeof Types.Config = native.Config;
-export const ConfigBuilder: typeof Types.ConfigBuilder = native.ConfigBuilder;
-export const File: typeof Types.File = native.File;
-export const Environment: typeof Types.Environment = native.Environment;
-export const FileFormat: typeof Types.FileFormat = native.FileFormat;
-export const Value: typeof Types.Value = native.Value;
+export const File = native.File;
+export const Environment = native.Environment;
+export const FileFormat = native.FileFormat;
+export const Value = native.Value;
+export const ConfigBuilder = native.ConfigBuilder;
+
+export const Config = Object.assign(native.Config, {
+  File: Object.assign(native.File, {
+    Format: native.FileFormat,
+  }),
+  Environment: native.Environment,
+  Value: native.Value,
+  Builder: native.ConfigBuilder,
+});
 
 export type Config = Types.Config;
 export type ConfigBuilder = Types.ConfigBuilder;

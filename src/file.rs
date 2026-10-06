@@ -37,6 +37,14 @@ pub struct File {
 
 #[napi]
 impl File {
+    #[napi(constructor)]
+    pub fn new(name: String, format: FileFormat) -> Self {
+        let fmt: config::FileFormat = format.into();
+        Self {
+            inner: FileSourceInner::File(config::File::new(&name, fmt)),
+        }
+    }
+
     #[napi(js_name = "with_name")]
     pub fn with_name(name: String) -> Self {
         Self {
