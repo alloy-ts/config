@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { Config, ConfigBuilder, File, FileFormat } from "../index.js";
+import { ConfigBuilder, File, FileFormat } from "./main.ts";
 
 test("File withName factory and format/required methods", () => {
   const file = File.withName("config/settings").format(FileFormat.Json).required(false);

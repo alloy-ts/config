@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 
+pub(crate) fn json_to_config_value(val: serde_json::Value) -> napi::Result<InnerValue> {
+    serde_json::from_value(val).map_err(|e| napi::Error::from_reason(e.to_string()))
+}
+
 /// A configuration value.
 #[napi]
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -16,8 +20,7 @@ pub struct Value {
 impl Value {
     #[napi(factory, js_name = "new", ts_args_type = "value: any, origin?: string | null")]
     pub fn new_value(value: serde_json::Value, origin: Option<String>) -> napi::Result<Value> {
-        let inner: InnerValue = serde_json::from_value(value)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        let inner: InnerValue = json_to_config_value(value)?;
         let inner = if let Some(orig) = origin {
             InnerValue::new(Some(&orig), inner.kind)
         } else {

@@ -1,6 +1,6 @@
-use config::{
+use ::config::{
     builder::DefaultState as InnerDefaultState,
-    ConfigBuilder as InnerConfigBuilder, Value,
+    ConfigBuilder as InnerConfigBuilder, Value as InnerValue,
 };
 use napi::bindgen_prelude::Either;
 use napi_derive::napi;
@@ -19,7 +19,7 @@ pub struct AsyncState;
 #[napi]
 #[derive(Clone, Debug, Default)]
 pub struct Environment {
-    pub(crate) inner: config::Environment,
+    pub(crate) inner: ::config::Environment,
 }
 
 #[napi]
@@ -27,14 +27,14 @@ impl Environment {
     #[napi(factory, js_name = "withPrefix")]
     pub fn with_prefix(prefix: String) -> Self {
         Self {
-            inner: config::Environment::with_prefix(&prefix),
+            inner: ::config::Environment::with_prefix(&prefix),
         }
     }
 
     #[napi(factory)]
     pub fn default() -> Self {
         Self {
-            inner: config::Environment::default(),
+            inner: ::config::Environment::default(),
         }
     }
 
@@ -57,16 +57,16 @@ impl Environment {
     }
 }
 
-impl config::Source for Environment {
-    fn clone_into_box(&self) -> Box<dyn config::Source + Send + Sync> {
+impl ::config::Source for Environment {
+    fn clone_into_box(&self) -> Box<dyn ::config::Source + Send + Sync> {
         Box::new(self.clone())
     }
 
-    fn collect(&self) -> Result<config::Map<String, Value>, config::ConfigError> {
+    fn collect(&self) -> Result<::config::Map<String, InnerValue>, ::config::ConfigError> {
         self.inner.collect()
     }
 
-    fn collect_to(&self, cache: &mut Value) -> Result<(), config::ConfigError> {
+    fn collect_to(&self, cache: &mut InnerValue) -> Result<(), ::config::ConfigError> {
         self.inner.collect_to(cache)
     }
 }
@@ -87,7 +87,7 @@ impl ConfigBuilder {
 
     #[napi(js_name = "setDefault")]
     pub fn set_default(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
-        let val: Value = serde_json::from_value(value)
+        let val: InnerValue = serde_json::from_value(value)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
         self.inner = self
             .inner
@@ -99,7 +99,7 @@ impl ConfigBuilder {
 
     #[napi(js_name = "setOverride")]
     pub fn set_override(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
-        let val: Value = serde_json::from_value(value)
+        let val: InnerValue = serde_json::from_value(value)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
         self.inner = self
             .inner
@@ -115,15 +115,18 @@ impl ConfigBuilder {
         key: String,
         value: Option<serde_json::Value>,
     ) -> napi::Result<&Self> {
-        if let Some(v) = value {
-            let val: Value = serde_json::from_value(v)
-                .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-            self.inner = self
-                .inner
-                .clone()
-                .set_override_option(&key, Some(val))
-                .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        }
+        let val = match value {
+            Some(v) => Some(
+                serde_json::from_value::<InnerValue>(v)
+                    .map_err(|e| napi::Error::from_reason(e.to_string()))?,
+            ),
+            None => None,
+        };
+        self.inner = self
+            .inner
+            .clone()
+            .set_override_option(&key, val)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
         Ok(self)
     }
 
@@ -146,11 +149,7 @@ impl ConfigBuilder {
         file_path: String,
         format: Option<Either<FileFormat, String>>,
     ) -> napi::Result<&Self> {
-        let file = if let Some(fmt) = format {
-            File::new(file_path, fmt)?
-        } else {
-            File::with_name(file_path)
-        };
+        let file = File::new(file_path, format)?;
         self.inner = self.inner.clone().add_source(file);
         Ok(self)
     }

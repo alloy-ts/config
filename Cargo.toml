@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-config = { version = "0.15.27", features = ["json", "toml", "yaml", "ini", "ron"] }
+config = { version = "0.15.27", features = ["json", "toml", "yaml", "ini", "ron", "json5"] }
 napi = { version = "3", features = ["serde-json"] }
 napi-derive = "3"
 serde = "1.0.229"
