@@ -3,6 +3,18 @@
 version = 4
 
 [[package]]
+name = "alloy_config"
+version = "0.1.0"
+dependencies = [
+ "config",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "arraydeque"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -340,17 +352,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
-name = "my-addon-native"
-version = "0.1.0"
-dependencies = [
- "config",
- "napi",
- "napi-build",
- "napi-derive",
- "serde",
-]
-
-[[package]]
 name = "napi"
 version = "3.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -364,6 +365,8 @@ dependencies = [
  "napi-sys",
  "nohash-hasher",
  "rustc-hash",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

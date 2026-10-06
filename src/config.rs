@@ -1,67 +1,126 @@
-use config::{Config as InnerConfig, ConfigError, Map, Source, Value};
+use config::{Config as InnerConfig, ConfigError, Map, Source, Value as ConfigValue};
+use napi_derive::napi;
 use serde::de::{Deserializer, Visitor};
 use serde::{Deserialize, Serialize};
 
-use crate::builder::{ConfigBuilder, DefaultState};
+use crate::builder::ConfigBuilder;
 
 /// A prioritized configuration repository.
 ///
 /// It maintains a set of configuration sources, fetches values to populate those, and provides
 /// them according to the source's priority.
+#[napi]
 #[derive(Clone, Debug, Default)]
 pub struct Config {
-    pub cache: Value,
-    inner: InnerConfig,
+    pub(crate) inner: InnerConfig,
+}
+
+#[napi]
+impl Config {
+    /// Creates new [`ConfigBuilder`] instance
+    #[napi(factory)]
+    pub fn builder() -> ConfigBuilder {
+        ConfigBuilder::default()
+    }
+
+    #[napi(getter)]
+    pub fn cache(&self) -> napi::Result<serde_json::Value> {
+        serde_json::Value::deserialize(self.inner.cache.clone())
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn get_string(&self, key: String) -> napi::Result<String> {
+        self.inner
+            .get_string(&key)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn get_int(&self, key: String) -> napi::Result<i64> {
+        self.inner
+            .get_int(&key)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn get_float(&self, key: String) -> napi::Result<f64> {
+        self.inner
+            .get_float(&key)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn get_bool(&self, key: String) -> napi::Result<bool> {
+        self.inner
+            .get_bool(&key)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn get_table(&self, key: String) -> napi::Result<serde_json::Value> {
+        let table = self
+            .inner
+            .get_table(&key)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        serde_json::Value::deserialize(ConfigValue::new(None, table))
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn get_array(&self, key: String) -> napi::Result<Vec<serde_json::Value>> {
+        let array = self
+            .inner
+            .get_array(&key)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        array
+            .into_iter()
+            .map(|v| {
+                serde_json::Value::deserialize(v)
+                    .map_err(|e| napi::Error::from_reason(e.to_string()))
+            })
+            .collect()
+    }
+
+    #[napi]
+    pub fn get(&self, key: String) -> napi::Result<serde_json::Value> {
+        self.inner
+            .get::<serde_json::Value>(&key)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn try_deserialize(&self) -> napi::Result<serde_json::Value> {
+        self.inner
+            .clone()
+            .try_deserialize::<serde_json::Value>()
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi(factory)]
+    pub fn try_from(from: serde_json::Value) -> napi::Result<Config> {
+        let inner = InnerConfig::try_from(&from)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        Ok(Self { inner })
+    }
 }
 
 impl Config {
-    pub(crate) fn new(cache: Value, inner: InnerConfig) -> Self {
-        Self { cache, inner }
+    pub(crate) fn new(inner: InnerConfig) -> Self {
+        Self { inner }
     }
 
-    /// Creates new [`ConfigBuilder`] instance
-    pub fn builder() -> ConfigBuilder<DefaultState> {
-        ConfigBuilder::<DefaultState>::default()
-    }
-
-    pub fn get<'de, T: Deserialize<'de>>(&self, key: &str) -> Result<T, ConfigError> {
+    pub fn get_de<'de, T: Deserialize<'de>>(&self, key: &str) -> Result<T, ConfigError> {
         self.inner.get(key)
     }
 
-    pub fn get_string(&self, key: &str) -> Result<String, ConfigError> {
-        self.inner.get_string(key)
-    }
-
-    pub fn get_int(&self, key: &str) -> Result<i64, ConfigError> {
-        self.inner.get_int(key)
-    }
-
-    pub fn get_float(&self, key: &str) -> Result<f64, ConfigError> {
-        self.inner.get_float(key)
-    }
-
-    pub fn get_bool(&self, key: &str) -> Result<bool, ConfigError> {
-        self.inner.get_bool(key)
-    }
-
-    pub fn get_table(&self, key: &str) -> Result<Map<String, Value>, ConfigError> {
-        self.inner.get_table(key)
-    }
-
-    pub fn get_array(&self, key: &str) -> Result<Vec<Value>, ConfigError> {
-        self.inner.get_array(key)
-    }
-
-    /// Attempt to deserialize the entire configuration into the requested type.
-    pub fn try_deserialize<'de, T: Deserialize<'de>>(self) -> Result<T, ConfigError> {
+    pub fn try_deserialize_de<'de, T: Deserialize<'de>>(self) -> Result<T, ConfigError> {
         self.inner.try_deserialize()
     }
 
-    /// Attempt to serialize the entire configuration from the given type.
-    pub fn try_from<T: Serialize>(from: &T) -> Result<Self, ConfigError> {
+    pub fn try_from_serde<T: Serialize>(from: &T) -> Result<Self, ConfigError> {
         let inner = InnerConfig::try_from(from)?;
-        let cache = inner.cache.clone();
-        Ok(Self { cache, inner })
+        Ok(Self { inner })
     }
 }
 
@@ -229,11 +288,11 @@ impl Source for Config {
         Box::new(self.clone())
     }
 
-    fn collect(&self) -> Result<Map<String, Value>, ConfigError> {
+    fn collect(&self) -> Result<Map<String, ConfigValue>, ConfigError> {
         self.inner.collect()
     }
 
-    fn collect_to(&self, cache: &mut Value) -> Result<(), ConfigError> {
+    fn collect_to(&self, cache: &mut ConfigValue) -> Result<(), ConfigError> {
         self.inner.collect_to(cache)
     }
 }
