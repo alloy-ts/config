@@ -2,8 +2,10 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   pack: {
-    entry: ["./src/main.ts"],
-    format: "esm",
+    entry: {
+      index: "./src/main.ts",
+    },
+    format: ["esm", "cjs"],
     outDir: "dist",
     exports: true,
     dts: {

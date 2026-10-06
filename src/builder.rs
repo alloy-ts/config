@@ -1,5 +1,5 @@
-use config::builder::DefaultState as InnerDefaultState;
-use config::ConfigBuilder as InnerConfigBuilder;
+use ::config::builder::DefaultState as InnerDefaultState;
+use ::config::ConfigBuilder as InnerConfigBuilder;
 use napi::Either;
 use napi_derive::napi;
 
@@ -7,8 +7,6 @@ use crate::config::Config;
 use crate::file::File;
 use crate::value::to_napi_err;
 use crate::BoxedSource;
-use crate::Environment;
-use crate::json_to_config_value;
 
 /// A configuration builder.
 #[napi]
@@ -24,9 +22,10 @@ impl ConfigBuilder {
         Self::default()
     }
 
-    #[napi]
+    #[napi(js_name = "setDefault")]
     pub fn set_default(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
-        let val = json_to_config_value(value)?;
+        let val: ::config::Value = serde_json::from_value(value)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
         self.inner = self
             .inner
             .clone()
@@ -35,9 +34,10 @@ impl ConfigBuilder {
         Ok(self)
     }
 
-    #[napi]
+    #[napi(js_name = "setOverride")]
     pub fn set_override(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
-        let val = json_to_config_value(value)?;
+        let val: ::config::Value = serde_json::from_value(value)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
         self.inner = self
             .inner
             .clone()
@@ -46,14 +46,15 @@ impl ConfigBuilder {
         Ok(self)
     }
 
-    #[napi]
+    #[napi(js_name = "setOverrideOption")]
     pub fn set_override_option(
         &mut self,
         key: String,
         value: Option<serde_json::Value>,
     ) -> napi::Result<&Self> {
         if let Some(v) = value {
-            let val = json_to_config_value(v)?;
+            let val: ::config::Value = serde_json::from_value(v)
+                .map_err(|e| napi::Error::from_reason(e.to_string()))?;
             self.inner = self
                 .inner
                 .clone()
@@ -63,13 +64,13 @@ impl ConfigBuilder {
         Ok(self)
     }
 
-    #[napi]
-    pub fn add_source(&mut self, source: Either<File, Environment>) -> napi::Result<&Self> {
+    #[napi(js_name = "addSource")]
+    pub fn add_source(&mut self, source: Either<&File, &Environment>) -> napi::Result<&Self> {
         let boxed = match source {
             Either::A(file) => file.into_config_source()?,
             Either::B(env) => env.into_config_source(),
         };
-        self.inner = self.inner.clone().add_source(boxed).map_err(to_napi_err)?;
+        self.inner = self.inner.clone().add_source(boxed);
         Ok(self)
     }
 
@@ -79,7 +80,7 @@ impl ConfigBuilder {
         Ok(Config::new(inner))
     }
 
-    #[napi]
+    #[napi(js_name = "buildCloned")]
     pub fn build_cloned(&self) -> napi::Result<Config> {
         let inner = self.inner.clone().build_cloned().map_err(to_napi_err)?;
         Ok(Config::new(inner))
@@ -103,7 +104,7 @@ impl Environment {
         Self::default()
     }
 
-    #[napi(factory)]
+    #[napi(factory, js_name = "withPrefix")]
     pub fn with_prefix(prefix: String) -> Self {
         Self {
             prefix: Some(prefix),
@@ -113,7 +114,7 @@ impl Environment {
         }
     }
 
-    #[napi(factory)]
+    #[napi(factory, js_name = "defaultEnv")]
     pub fn default_env() -> Self {
         Self::default()
     }
@@ -130,22 +131,22 @@ impl Environment {
         self
     }
 
-    #[napi]
+    #[napi(js_name = "ignoreEmpty")]
     pub fn ignore_empty(&mut self, ignore_empty: bool) -> &Self {
         self.ignore_empty = ignore_empty;
         self
     }
 
-    #[napi]
+    #[napi(js_name = "keepPrefix")]
     pub fn keep_prefix(&mut self, keep_prefix: bool) -> &Self {
         self.keep_prefix = keep_prefix;
         self
     }
 
     pub(crate) fn into_config_source(&self) -> BoxedSource {
-        let mut env = config::Environment::default();
+        let mut env = ::config::Environment::default();
         if let Some(p) = &self.prefix {
-            env = env.with_prefix(p);
+            env = env.prefix(p);
         }
         if let Some(s) = &self.separator {
             env = env.separator(s);

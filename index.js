@@ -902,7 +902,54 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`);
 }
 
-const { Config, ConfigBuilder, Environment, File, Value, FileFormat } = nativeBinding;
+const { Config: NativeConfig, ConfigBuilder, Environment, File, Value, FileFormat } = nativeBinding;
+
+const Config = function (...args) {
+  return new NativeConfig(...args);
+};
+Object.setPrototypeOf(Config, NativeConfig);
+Config.prototype = NativeConfig.prototype;
+
+Object.defineProperty(Config, "builder", {
+  value: function () {
+    return new ConfigBuilder();
+  },
+  writable: true,
+  configurable: true,
+});
+
+Object.defineProperty(Config, "tryFrom", {
+  value: function (from) {
+    return NativeConfig.tryFrom(from);
+  },
+  writable: true,
+  configurable: true,
+});
+
+Object.defineProperty(Config, "File", {
+  value: File,
+  writable: true,
+  configurable: true,
+});
+
+if (File) {
+  File.Format = FileFormat;
+}
+
+if (Value && Value.prototype) {
+  Value.prototype.valueOf = function () {
+    return this.tryDeserialize();
+  };
+  Value.prototype.toJSON = function () {
+    return this.tryDeserialize();
+  };
+  Value.prototype[Symbol.toPrimitive] = function (hint) {
+    const val = this.tryDeserialize();
+    if (hint === "number") return Number(val);
+    if (hint === "string") return String(val);
+    return val;
+  };
+}
 export { Config };
 export { ConfigBuilder };
 export { Environment };
