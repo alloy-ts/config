@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { Config, File } from "./main.ts";
+import { Config, File, FileFormat } from "./main.ts";
 
 test("File.fromStr with JSON format", () => {
   const jsonStr = JSON.stringify({
@@ -9,7 +9,7 @@ test("File.fromStr with JSON format", () => {
     },
   });
 
-  const file = File.fromStr(jsonStr, "json");
+  const file = File.fromStr(jsonStr, FileFormat.Json);
   const config = Config.builder().addSource(file).build();
 
   expect(config.getString("app.name")).toBe("alloy-test");
@@ -24,7 +24,7 @@ test("Config.File constructor and Config.File.Format enum", () => {
     },
   });
 
-  const file = File.fromStr(jsonStr, "json");
+  const file = File.fromStr(jsonStr, FileFormat.Json);
   const config = Config.builder()
     .setDefault("database.host", "localhost")
     .addSource(file)

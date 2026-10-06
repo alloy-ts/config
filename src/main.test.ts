@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { Config, ConfigBuilder, Environment, File, Value } from "./main.ts";
+import { Config, ConfigBuilder, Environment, File, FileFormat, Value } from "./main.ts";
 
 test("ConfigBuilder sets defaults, overrides, and builds Config", () => {
   const builder = new ConfigBuilder();
@@ -38,7 +38,7 @@ test("Config reading JSON file string source via File.fromStr and File.new", () 
     },
   });
 
-  const file = File.fromStr(jsonContent, "json");
+  const file = File.fromStr(jsonContent, FileFormat.Json);
   const builder = new ConfigBuilder().addSource(file);
   const config = builder.build();
 
@@ -49,7 +49,7 @@ test("Config reading JSON file string source via File.fromStr and File.new", () 
   expect(config.getTable("app.metadata")).toEqual({ env: "test" });
   expect(config.get("app.name")).toBe("alloy-test");
 
-  const file2 = new File("config/settings", "json");
+  const file2 = new File("config/settings", FileFormat.Json);
   expect(file2).toBeDefined();
 });
 

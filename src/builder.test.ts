@@ -1,12 +1,12 @@
 import assert from "node:assert";
 import { describe, it } from "vite-plus/test";
-import { ConfigBuilder, File } from "./main.ts";
+import { ConfigBuilder, File, FileFormat } from "./main.ts";
 
 describe("ConfigBuilder and NAPI bindings (builder.rs)", () => {
   it("supports new ConfigBuilder() chaining with setDefault, addSource, setOverride, and build", () => {
     const fileSource = File.fromStr(
       '{"fileKey": "fileVal", "default": "overriddenByFile"}',
-      "json",
+      FileFormat.Json,
     );
     const config = new ConfigBuilder()
       .setDefault("default", "1")
@@ -47,7 +47,7 @@ describe("ConfigBuilder and NAPI bindings (builder.rs)", () => {
   });
 
   it("supports addFile with format and without format", () => {
-    const fileSource = File.fromStr('{"nested": {"key": "value"}}', "json");
+    const fileSource = File.fromStr('{"nested": {"key": "value"}}', FileFormat.Json);
     const builder = new ConfigBuilder();
     builder.addSource(fileSource);
 
@@ -57,10 +57,10 @@ describe("ConfigBuilder and NAPI bindings (builder.rs)", () => {
   });
 
   it("supports File static constructors and methods (File.new, File.fromStr, File.withName, format, required)", () => {
-    const f1 = File.fromStr('{"x": 10}', "json");
+    const f1 = File.fromStr('{"x": 10}', FileFormat.Json);
     f1.required(true);
 
-    const f2 = new File("non_existent_file", "json");
+    const f2 = new File("non_existent_file", FileFormat.Json);
     f2.required(false);
 
     const config = new ConfigBuilder().addSource(f1).addSource(f2).build();

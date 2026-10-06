@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { Config, ConfigBuilder, File } from "./main.ts";
+import { Config, ConfigBuilder, File, FileFormat } from "./main.ts";
 
 test("Config getters (getString, getInt, getFloat, getBool, getTable, getArray)", () => {
   const json = JSON.stringify({
@@ -11,7 +11,7 @@ test("Config getters (getString, getInt, getFloat, getBool, getTable, getArray)"
     arr: ["a", "b", "c"],
   });
 
-  const config = new ConfigBuilder().addSource(File.fromStr(json, "json")).build();
+  const config = new ConfigBuilder().addSource(File.fromStr(json, FileFormat.Json)).build();
 
   expect(config.getString("str")).toBe("hello");
   expect(config.getInt("numInt")).toBe(100);
