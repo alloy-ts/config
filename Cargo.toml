@@ -1,5 +1,5 @@
 [package]
-name = "my-addon-native"
+name = "alloy_config"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,8 +7,11 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "3"
+config = { version = "0.15", features = ["json", "toml", "yaml", "ron", "ini", "json5"] }
+napi = { version = "3", features = ["serde-json", "async"] }
 napi-derive = "3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 [build-dependencies]
 napi-build = "2"

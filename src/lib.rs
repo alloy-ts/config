@@ -1,6 +1,12 @@
-use napi_derive::napi;
+#[path = "builder.rs"]
+pub(crate) mod builder;
 
-#[napi]
-pub fn add(left: i32, right: i32) -> i32 {
-  left + right
-}
+#[path = "config.rs"]
+pub(crate) mod config;
+
+#[path = "value.rs"]
+pub(crate) mod value;
+
+pub use builder::*;
+pub use config::*;
+pub use value::*;
