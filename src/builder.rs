@@ -3,17 +3,16 @@ use config::ConfigBuilder as InnerConfigBuilder;
 use napi::Either;
 use napi_derive::napi;
 
-use crate::configuration::Config;
+use crate::config::Config;
 use crate::file::File;
-use crate::value::to_napi_err;
+use crate::value::{json_to_config_value, to_napi_err};
 use crate::BoxedSource;
-use crate::json_to_config_value;
 
 /// A configuration builder.
 #[napi]
 #[derive(Debug, Clone, Default)]
 pub struct ConfigBuilder {
-    inner: InnerConfigBuilder<InnerDefaultState>,
+    pub(crate) inner: InnerConfigBuilder<InnerDefaultState>,
 }
 
 #[napi]

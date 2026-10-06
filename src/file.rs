@@ -70,17 +70,15 @@ impl File {
     }
 
     #[napi]
-    pub fn format(&mut self, format: FileFormat) -> Self {
-        let mut c = self.clone();
-        c.format = Some(format);
-        c
+    pub fn format(&mut self, format: FileFormat) -> &Self {
+        self.format = Some(format);
+        self
     }
 
     #[napi]
-    pub fn required(&mut self, required: bool) -> Self {
-        let mut c = self.clone();
-        c.required = required;
-        c
+    pub fn required(&mut self, required: bool) -> &Self {
+        self.required = required;
+        self
     }
 
     /// Build a `config::File` source from this wrapper.
