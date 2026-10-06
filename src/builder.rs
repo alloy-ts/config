@@ -1,11 +1,12 @@
 use config::{
-    builder::DefaultState as InnerDefaultState,
-    ConfigBuilder as InnerConfigBuilder, ConfigError, Source, Value,
+    builder::DefaultState as InnerDefaultState, ConfigBuilder as InnerConfigBuilder, ConfigError,
+    Environment as InnerEnvironment, Source, Value,
 };
+use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
 use crate::config::Config;
-use crate::json_to_config_value;
+use crate::file::File;
 
 /// Represents data specific to builder in default state.
 #[napi]
@@ -18,129 +19,80 @@ pub struct AsyncState;
 #[napi]
 #[derive(Debug, Clone, Copy)]
 pub enum FileFormat {
-  Toml,
-  Json,
-  Yaml,
-  Ini,
-  Ron,
-  Json5,
+    Toml,
+    Json,
+    Yaml,
+    Ini,
+    Ron,
+    Json5,
 }
 
 impl From<FileFormat> for ::config::FileFormat {
-  fn from(f: FileFormat) -> Self {
-    match f {
-      FileFormat::Toml => ::config::FileFormat::Toml,
-      FileFormat::Json => ::config::FileFormat::Json,
-      FileFormat::Yaml => ::config::FileFormat::Yaml,
-      FileFormat::Ini => ::config::FileFormat::Ini,
-      FileFormat::Ron => ::config::FileFormat::Ron,
-      FileFormat::Json5 => ::config::FileFormat::Json5,
+    fn from(f: FileFormat) -> Self {
+        match f {
+            FileFormat::Toml => ::config::FileFormat::Toml,
+            FileFormat::Json => ::config::FileFormat::Json,
+            FileFormat::Yaml => ::config::FileFormat::Yaml,
+            FileFormat::Ini => ::config::FileFormat::Ini,
+            FileFormat::Ron => ::config::FileFormat::Ron,
+            FileFormat::Json5 => ::config::FileFormat::Json5,
+        }
     }
-  }
 }
 
 #[napi]
-#[derive(Clone)]
-pub struct File {
-  pub(crate) name: Option<String>,
-  pub(crate) content: Option<String>,
-  pub(crate) format: Option<FileFormat>,
-  pub(crate) required: bool,
-}
-
-#[napi]
-impl File {
-  #[napi(factory)]
-  pub fn new(name: String, format: FileFormat) -> Self {
-    Self {
-      name: Some(name),
-      content: None,
-      format: Some(format),
-      required: true,
-    }
-  }
-
-  #[napi(factory)]
-  pub fn with_name(name: String) -> Self {
-    Self {
-      name: Some(name),
-      content: None,
-      format: None,
-      required: true,
-    }
-  }
-
-  #[napi(factory)]
-  pub fn from_str(content: String, format: FileFormat) -> Self {
-    Self {
-      name: None,
-      content: Some(content),
-      format: Some(format),
-      required: true,
-    }
-  }
-
-  #[napi]
-  pub fn required(&mut self, required: bool) -> &Self {
-    self.required = required;
-    self
-  }
-
-  #[napi]
-  pub fn format(&mut self, format: FileFormat) -> &Self {
-    self.format = Some(format);
-    self
-  }
-}
-
-#[napi]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Environment {
-  pub(crate) prefix: Option<String>,
-  pub(crate) separator: Option<String>,
-  pub(crate) ignore_empty: bool,
-  pub(crate) keep_prefix: bool,
+    pub(crate) inner: InnerEnvironment,
 }
 
 #[napi]
 impl Environment {
-  #[napi(factory)]
-  pub fn with_prefix(prefix: String) -> Self {
-    Self {
-      prefix: Some(prefix),
-      separator: None,
-      ignore_empty: false,
-      keep_prefix: false,
+    #[napi(factory)]
+    pub fn with_prefix(prefix: String) -> Self {
+        Self {
+            inner: InnerEnvironment::with_prefix(&prefix),
+        }
     }
-  }
 
-  #[napi(factory)]
-  pub fn default() -> Self {
-    Self {
-      prefix: None,
-      separator: None,
-      ignore_empty: false,
-      keep_prefix: false,
+    #[napi(factory)]
+    pub fn default() -> Self {
+        Self {
+            inner: InnerEnvironment::default(),
+        }
     }
-  }
 
-  #[napi]
-  pub fn separator(&mut self, separator: String) -> &Self {
-    self.separator = Some(separator);
-    self
-  }
+    #[napi]
+    pub fn separator(&mut self, separator: String) -> &Self {
+        self.inner = self.inner.clone().separator(&separator);
+        self
+    }
 
-  #[napi]
-  pub fn ignore_empty(&mut self, ignore: bool) -> &Self {
-    self.ignore_empty = ignore;
-    self
-  }
+    #[napi]
+    pub fn ignore_empty(&mut self, ignore: bool) -> &Self {
+        self.inner = self.inner.clone().ignore_empty(ignore);
+        self
+    }
 
-  #[napi]
-  pub fn keep_prefix(&mut self, keep: bool) -> &Self {
-    self.keep_prefix = keep;
-    self
-  }
+    #[napi]
+    pub fn keep_prefix(&mut self, keep: bool) -> &Self {
+        self.inner = self.inner.clone().keep_prefix(keep);
+        self
+    }
+}
+
+impl Source for Environment {
+    fn clone_into_box(&self) -> Box<dyn Source + Send + Sync> {
+        Box::new(self.clone())
+    }
+
+    fn collect(&self) -> std::result::Result<config::Map<String, Value>, ConfigError> {
+        self.inner.collect()
+    }
+
+    fn collect_to(&self, cache: &mut Value) -> std::result::Result<(), ConfigError> {
+        self.inner.collect_to(cache)
+    }
 }
 
 /// A configuration builder
@@ -200,7 +152,7 @@ impl ConfigBuilder {
     }
 
     #[napi]
-    pub fn add_file(&mut self, file_path: String, format: Option<String>) -> napi::Result<&Self> {
+    pub fn add_file(&mut self, file_path: String, format: Option<Either<String, FileFormat>>) -> napi::Result<&Self> {
         let file = if let Some(fmt) = format {
             File::new(file_path, fmt)?
         } else {
@@ -211,9 +163,16 @@ impl ConfigBuilder {
     }
 
     #[napi]
-    pub fn add_source(&mut self, file: &File) -> &Self {
-        self.inner = self.inner.clone().add_source(file.clone());
-        self
+    pub fn add_source(&mut self, source: Either<&File, &Environment>) -> napi::Result<&Self> {
+        match source {
+            Either::A(file) => {
+                self.inner = self.inner.clone().add_source(file.clone());
+            }
+            Either::B(environment) => {
+                self.inner = self.inner.clone().add_source(environment.clone());
+            }
+        }
+        Ok(self)
     }
 
     #[napi]
@@ -236,7 +195,7 @@ impl ConfigBuilder {
 }
 
 impl ConfigBuilder {
-    pub fn set_default_rust<S, T>(mut self, key: S, value: T) -> Result<Self, ConfigError>
+    pub fn set_default_rust<S, T>(mut self, key: S, value: T) -> std::result::Result<Self, ConfigError>
     where
         S: AsRef<str>,
         T: Into<Value>,
@@ -245,7 +204,7 @@ impl ConfigBuilder {
         Ok(self)
     }
 
-    pub fn set_override_rust<S, T>(mut self, key: S, value: T) -> Result<Self, ConfigError>
+    pub fn set_override_rust<S, T>(mut self, key: S, value: T) -> std::result::Result<Self, ConfigError>
     where
         S: AsRef<str>,
         T: Into<Value>,

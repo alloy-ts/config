@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { Config, ConfigBuilder, Environment, File, FileFormat, Value } from "../dist/index.js";
+import { Config, ConfigBuilder, Environment, File, Value } from "../dist/index.js";
 
 test("ConfigBuilder sets defaults, overrides, and builds Config", () => {
   const builder = new ConfigBuilder();
@@ -38,7 +38,7 @@ test("Config reading JSON file string source via File.fromStr and File.new", () 
     },
   });
 
-  const file = File.fromStr(jsonContent, FileFormat.Json);
+  const file = File.fromStr(jsonContent, "json");
   const builder = new ConfigBuilder().addSource(file);
   const config = builder.build();
 
@@ -49,13 +49,13 @@ test("Config reading JSON file string source via File.fromStr and File.new", () 
   expect(config.getTable("app.metadata")).toEqual({ env: "test" });
   expect(config.get("app.name")).toBe("alloy-test");
 
-  const file2 = File.new("config/settings", FileFormat.Json);
+  const file2 = File.new("config/settings", "json");
   expect(file2).toBeDefined();
 });
 
 test("Config Environment source", () => {
-  process.env.APP_DATABASE_URL = "postgres://localhost/db";
-  process.env.APP_MAX_CONNECTIONS = "10";
+  process.env["APP_DATABASE_URL"] = "postgres://localhost/db";
+  process.env["APP_MAX_CONNECTIONS"] = "10";
 
   const envSource = Environment.withPrefix("APP").separator("_");
   const builder = new ConfigBuilder().addSource(envSource);
@@ -64,8 +64,8 @@ test("Config Environment source", () => {
   expect(config.getString("database.url")).toBe("postgres://localhost/db");
   expect(config.getString("max.connections")).toBe("10");
 
-  delete process.env.APP_DATABASE_URL;
-  delete process.env.APP_MAX_CONNECTIONS;
+  delete process.env["APP_DATABASE_URL"];
+  delete process.env["APP_MAX_CONNECTIONS"];
 });
 
 test("Config tryDeserialize and Config.tryFrom", () => {
@@ -105,11 +105,11 @@ test("Value class methods", () => {
   const vArray = Value.new([1, 2, 3]);
   const arr = vArray.intoArray();
   expect(arr.length).toBe(3);
-  expect(arr[0].intoInt()).toBe(1);
+  expect(arr[0]!.intoInt()).toBe(1);
 
   const vTable = Value.new({ k: "v" });
   const tbl = vTable.intoTable();
-  expect(tbl.k.intoString()).toBe("v");
+  expect(tbl["k"]!.intoString()).toBe("v");
 });
 
 test("ConfigBuilder buildCloned allows multiple builds", () => {
