@@ -1,10 +1,11 @@
 use config::{
     builder::DefaultState as InnerDefaultState,
-    ConfigBuilder as InnerConfigBuilder, ConfigError, File, FileFormat, Source, Value,
+    ConfigBuilder as InnerConfigBuilder, ConfigError, Source, Value,
 };
 use napi_derive::napi;
 
 use crate::config::Config;
+use crate::file::File;
 
 /// A configuration builder
 #[napi]
@@ -64,23 +65,19 @@ impl ConfigBuilder {
 
     #[napi]
     pub fn add_file(&mut self, file_path: String, format: Option<String>) -> napi::Result<&Self> {
-        let file_format = match format.as_deref() {
-            Some("json") | None => FileFormat::Json,
-            Some("toml") => FileFormat::Toml,
-            Some("yaml") | Some("yml") => FileFormat::Yaml,
-            Some("ini") => FileFormat::Ini,
-            Some("ron") => FileFormat::Ron,
-            Some(other) => {
-                return Err(napi::Error::from_reason(format!(
-                    "Unsupported file format: {}",
-                    other
-                )))
-            }
+        let file = if let Some(fmt) = format {
+            File::new(file_path, fmt)?
+        } else {
+            File::with_name(file_path)
         };
-
-        let file_source = File::new(&file_path, file_format);
-        self.inner = self.inner.clone().add_source(file_source);
+        self.inner = self.inner.clone().add_source(file);
         Ok(self)
+    }
+
+    #[napi]
+    pub fn add_source(&mut self, file: &File) -> &Self {
+        self.inner = self.inner.clone().add_source(file.clone());
+        self
     }
 
     #[napi]

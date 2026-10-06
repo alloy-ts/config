@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "vite-plus/test";
-import { ConfigBuilder, Value } from "../dist/index.js";
+import { ConfigBuilder, File, Value } from "../dist/index.js";
 
 describe("NAPI bindings", () => {
   it("ConfigBuilder and Config", () => {
@@ -11,6 +11,15 @@ describe("NAPI bindings", () => {
     const config = builder.build();
     assert.strictEqual(config.getString("key"), "value");
     assert.strictEqual(config.getInt("num"), 42);
+  });
+
+  it("File source with ConfigBuilder", () => {
+    const file = File.fromStr('{"a": "b"}', "json");
+    const builder = new ConfigBuilder();
+    builder.addSource(file);
+
+    const config = builder.build();
+    assert.strictEqual(config.getString("a"), "b");
   });
 
   it("Value NAPI methods", () => {
