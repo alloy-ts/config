@@ -1,6 +1,23 @@
-# Starter Template
+# @alloy-ts/config
 
-TypeScript starter template.
+TypeScript/JavaScript bindings for Rust configuration management via NAPI-RS.
+
+## Usage
+
+```typescript
+import { Config, File } from "@alloy-ts/config";
+
+// Build configuration using builder pattern
+const config = Config.builder()
+  .setDefault("default", "1")
+  .addSource(File.new("config/settings", "json"))
+  .setOverride("override", "1")
+  .build();
+
+// Retrieve configuration values
+const defaultValue = config.getString("default");
+const overrideValue = config.getString("override");
+```
 
 ## Development
 
@@ -20,12 +37,6 @@ vp install
 
 ```bash
 vp test
-```
-
-- Run the locally:
-
-```bash
-npm run dev
 ```
 
 - Build the library:
