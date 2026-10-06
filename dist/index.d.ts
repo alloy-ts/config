@@ -7,89 +7,80 @@
  * flavor napi-rs can build is listed, because `NAPI_RS_NATIVE_LIBRARY_PATH`
  * can point the loader at a WASI artifact this package does not build itself.
  */
-export declare const __napiBindingTarget: "native" | "wasm32-wasi" | "wasm32-wasip1";
+export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
 
+/**
+ * A prioritized configuration repository.
+ *
+ * It maintains a set of configuration sources, fetches values to populate those, and provides
+ * them according to the source's priority.
+ */
 export declare class Config {
-  static builder(): ConfigBuilder;
-  static tryFrom(from: JsonValue): Config;
-  get cache(): any;
-  get(key: string): JsonValue;
-  getString(key: string): string;
-  getInt(key: string): number;
-  getFloat(key: string): number;
-  getBool(key: string): boolean;
-  getTable(key: string): Record<string, any>;
-  getArray(key: string): Array<any>;
-  tryDeserialize(): JsonValue;
+  /** Creates new [`ConfigBuilder`] instance */
+  static builder(): ConfigBuilder
+  get cache(): Record<string, any>
+  getString(key: string): string
+  getInt(key: string): number
+  getFloat(key: string): number
+  getBool(key: string): boolean
+  getTable(key: string): Record<string, any>
+  getArray(key: string): Array<any>
+  get(key: string): any
+  tryDeserialize(): any
+  static tryFrom(from: any): Config
 }
 
 export declare class ConfigBuilder {
-  constructor();
-  setDefault(key: string, value: JsonValue): this;
-  setOverride(key: string, value: JsonValue): this;
-  setOverrideOption(key: string, value?: JsonValue | undefined | null): this;
-  addSource(source: File | Environment | any): this;
-  addAsyncSource(source: File | Environment | any): this;
-  build(): Config;
-  buildCloned(): Config;
+  constructor()
+  setDefault(key: string, value: any): this
+  setOverride(key: string, value: any): this
+  setOverrideOption(key: string, value?: any | undefined | null): this
+  addSource(source: File | Environment | Config): this
+  addFile(filePath: string, format?: FileFormat | undefined | null): this
+  build(): Config
+  buildCloned(): Config
 }
 
 export declare class Environment {
-  static withPrefix(prefix: string): Environment;
-  static default(): Environment;
-  static withPrefixAndDefault(prefix: string, defaultPrefix: string): Environment;
-  prefix(prefix: string): this;
-  separator(separator: string): this;
-  ignoreEmpty(ignore: boolean): this;
-  keepPrefix(keep: boolean): this;
-  tryParsing(tryParse: boolean): this;
-  listSeparator(separator: string): this;
+  constructor()
+  static default(): Environment
+  static withPrefix(prefix: string): Environment
+  prefix(prefix: string): this
+  separator(separator: string): this
+  ignoreEmpty(ignore: boolean): this
+  keepPrefix(keep: boolean): this
 }
 
 export declare class File {
-  constructor(name: string, format: FileFormat);
-  static withName(name: string): File;
-  static fromStr(text: string, format: FileFormat): File;
-  format(format: FileFormat): this;
-  required(required: boolean): this;
+  constructor(nameOrText: string, format?: FileFormat | undefined | null)
+  static new(nameOrText: string, format?: FileFormat | undefined | null): File
+  static withName(name: string): File
+  static fromStr(text: string, format: FileFormat): File
+  format(format: FileFormat): this
+  required(required: boolean): this
 }
 
 export declare class Value {
-  constructor(origin: string | undefined | null, kind: JsonValue);
-  get origin(): string | null;
-  get kind(): ValueKind;
-  intoBool(): boolean;
-  intoInt(): number;
-  intoInt128(): string;
-  intoUint(): number;
-  intoUint128(): string;
-  intoFloat(): number;
-  intoString(): string;
-  intoArray(): Array<Value>;
-  intoTable(): Record<string, Value>;
-  tryDeserialize(): JsonValue;
-}
-
-export declare const enum Case {
-  Lower = "Lower",
-  Upper = "Upper",
-  Snake = "Snake",
-  Kebab = "Kebab",
-  Camel = "Camel",
-  Pascal = "Pascal",
-  ScreamingSnake = "ScreamingSnake",
+  static new(value: any, origin?: string | null): Value
+  constructor(value?: any, origin?: string | null)
+  origin(): string | null
+  tryDeserialize(): any
+  intoBool(): boolean
+  intoInt(): number
+  intoInt128(): number
+  intoUint(): number
+  intoUint128(): number
+  intoFloat(): number
+  intoString(): string
+  intoArray(): Array<Value>
+  intoTable(): Record<string, Value>
 }
 
 export declare const enum FileFormat {
-  Toml = "Toml",
-  Json = "Json",
-  Yaml = "Yaml",
-  Ini = "Ini",
-  Ron = "Ron",
-  Json5 = "Json5",
-}
-
-export interface ValueKind {
-  kind: string;
-  value: JsonValue;
+  Ini = 'ini',
+  Json = 'json',
+  Json5 = 'json5',
+  Ron = 'ron',
+  Toml = 'toml',
+  Yaml = 'yaml',
 }

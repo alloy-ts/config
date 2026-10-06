@@ -1,6 +1,6 @@
 use napi_derive::napi;
 
-#[napi]
+#[napi(string_enum = "lowercase")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileFormat {
     Ini,
@@ -35,28 +35,8 @@ pub struct File {
 
 #[napi]
 impl File {
-    #[napi(factory)]
-    pub fn with_name(name: String) -> Self {
-        Self {
-            name: Some(name),
-            text: None,
-            format: None,
-            required: true,
-        }
-    }
-
-    #[napi(factory)]
-    pub fn from_str(text: String, format: FileFormat) -> Self {
-        Self {
-            name: None,
-            text: Some(text),
-            format: Some(format),
-            required: true,
-        }
-    }
-
     #[napi(constructor)]
-    pub fn new(name_or_text: String, format: Option<FileFormat>) -> Self {
+    pub fn js_constructor(name_or_text: String, format: Option<FileFormat>) -> Self {
         Self {
             name: Some(name_or_text),
             text: None,
@@ -66,16 +46,56 @@ impl File {
     }
 
     #[napi]
-    pub fn format(&mut self, format: FileFormat) -> Self {
-        let mut c = self.clone();
-        c.format = Some(format);
-        c
+    pub fn new(name_or_text: String, format: Option<FileFormat>) -> Self {
+        Self::js_constructor(name_or_text, format)
     }
 
     #[napi]
-    pub fn required(&mut self, required: bool) -> Self {
-        let mut c = self.clone();
-        c.required = required;
-        c
+    pub fn with_name(name: String) -> Self {
+        Self {
+            name: Some(name),
+            text: None,
+            format: None,
+            required: true,
+        }
+    }
+
+    #[napi]
+    pub fn from_str(text: String, format: FileFormat) -> Self {
+        Self {
+            name: None,
+            text: Some(text),
+            format: Some(format),
+            required: true,
+        }
+    }
+
+    #[napi]
+    pub fn format(&mut self, format: FileFormat) -> &Self {
+        self.format = Some(format);
+        self
+    }
+
+    #[napi]
+    pub fn required(&mut self, required: bool) -> &Self {
+        self.required = required;
+        self
+    }
+}
+
+impl File {
+    pub(crate) fn to_config_source(&self) -> Box<dyn config::Source + Send + Sync> {
+        let fmt: config::FileFormat = self.format.map(Into::into).unwrap_or(config::FileFormat::Json);
+        if let Some(text) = &self.text {
+            Box::new(config::File::<config::FileSourceString, config::FileFormat>::from_str(text, fmt).required(self.required))
+        } else if let Some(name) = &self.name {
+            if self.format.is_some() {
+                Box::new(config::File::<config::FileSourceFile, config::FileFormat>::new(name, fmt).required(self.required))
+            } else {
+                Box::new(config::File::<config::FileSourceFile, config::FileFormat>::with_name(name).required(self.required))
+            }
+        } else {
+            Box::new(config::File::<config::FileSourceString, config::FileFormat>::from_str("", config::FileFormat::Json).required(false))
+        }
     }
 }
