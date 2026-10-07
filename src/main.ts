@@ -18,6 +18,16 @@ NativeConfig.File = File;
 // Support setSchema method on ConfigBuilder
 ConfigBuilder.prototype.setSchema = function (schema: any) {
   (this as any)._schema = schema;
+  if (schema && typeof schema === "object") {
+    if (typeof schema.getDefaults === "function") {
+      const defaults = schema.getDefaults();
+      if (defaults && typeof defaults === "object") {
+        for (const [key, value] of Object.entries(defaults)) {
+          this.setDefault(key, value);
+        }
+      }
+    }
+  }
   return this;
 };
 
