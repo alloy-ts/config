@@ -17,6 +17,16 @@ describe("NAPI bindings & src/builder.test.ts equivalence", () => {
     assert.strictEqual(builtConfig.getString("override"), "1");
   });
 
+  it("ConfigBuilder setSchema with Schema object", () => {
+    const fakeSchema = { type: "object", properties: { name: { type: "string" } } };
+    const builder = new ConfigBuilder();
+    builder.setSchema(fakeSchema);
+    builder.setDefault("name", "Alloy");
+
+    const config = builder.build();
+    assert.strictEqual(config.getString("name"), "Alloy");
+  });
+
   it("ConfigBuilder and Config basic operations", () => {
     const builder = new ConfigBuilder();
     builder.setDefault("key", "value");

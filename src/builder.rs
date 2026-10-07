@@ -12,6 +12,7 @@ use crate::file::File;
 #[derive(Debug, Clone, Default)]
 pub struct ConfigBuilder {
     inner: InnerConfigBuilder<InnerDefaultState>,
+    schema: Option<serde_json::Value>,
 }
 
 #[napi]
@@ -19,6 +20,12 @@ impl ConfigBuilder {
     #[napi(constructor)]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[napi]
+    pub fn set_schema(&mut self, schema: serde_json::Value) -> &Self {
+        self.schema = Some(schema);
+        self
     }
 
     #[napi]
