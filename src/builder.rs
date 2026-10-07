@@ -23,8 +23,8 @@ impl ConfigBuilder {
     }
 
     #[napi]
-    pub fn set_schema(&mut self, schema: serde_json::Value) -> &Self {
-        self.schema = Some(schema);
+    pub fn set_schema(&mut self, _schema: napi::bindgen_prelude::Unknown) -> &Self {
+        self.schema = None;
         self
     }
 

@@ -64,5 +64,8 @@
       "version": "11.11.0",
       "onFail": "download"
     }
+  },
+  "dependencies": {
+    "schema": "file:packages/schema"
   }
 }
