@@ -40,12 +40,30 @@ console.log(config.getString("host")); // "localhost"
 console.log(config.getInt("port"));   // 8080
 ```
 
+### Layering Environment Variables and Files
+
+```typescript
+import { Config, Environment, File, FileFormat } from "@alloy-ts/config";
+
+process.env["APP_PORT"] = "9000";
+
+const config = Config.builder()
+  .setDefault("port", 3000)
+  .addSource(new File("config/settings.json", FileFormat.Json))
+  .addSource(Environment.withPrefix("APP").separator("_"))
+  .setOverride("env", "production")
+  .build();
+
+console.log(config.getInt("port")); // 9000 (overridden by environment variable)
+```
+
 ## Running Examples
 
 Execute example scripts with `@oxc-node/core`:
 
 ```bash
 node --import @oxc-node/core/register examples/config-file.ts
+node --import @oxc-node/core/register examples/load-npm-package-json.ts
 ```
 
 ## Development
