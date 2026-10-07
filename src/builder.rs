@@ -1,11 +1,11 @@
 use config::{
     builder::DefaultState as InnerDefaultState,
-    ConfigBuilder as InnerConfigBuilder, ConfigError, Source, Value,
+    ConfigBuilder as InnerConfigBuilder, ConfigError, Map, Source, Value as ConfigValue, Value,
 };
 use napi_derive::napi;
 
 use crate::config::Config;
-use crate::json_to_config_value;
+use crate::file::File;
 
 /// Represents data specific to builder in default state.
 #[napi]
@@ -16,131 +16,108 @@ pub struct DefaultState;
 pub struct AsyncState;
 
 #[napi]
-#[derive(Debug, Clone, Copy)]
-pub enum FileFormat {
-  Toml,
-  Json,
-  Yaml,
-  Ini,
-  Ron,
-  Json5,
-}
-
-impl From<FileFormat> for ::config::FileFormat {
-  fn from(f: FileFormat) -> Self {
-    match f {
-      FileFormat::Toml => ::config::FileFormat::Toml,
-      FileFormat::Json => ::config::FileFormat::Json,
-      FileFormat::Yaml => ::config::FileFormat::Yaml,
-      FileFormat::Ini => ::config::FileFormat::Ini,
-      FileFormat::Ron => ::config::FileFormat::Ron,
-      FileFormat::Json5 => ::config::FileFormat::Json5,
-    }
-  }
-}
-
-#[napi]
-#[derive(Clone)]
-pub struct File {
-  pub(crate) name: Option<String>,
-  pub(crate) content: Option<String>,
-  pub(crate) format: Option<FileFormat>,
-  pub(crate) required: bool,
-}
-
-#[napi]
-impl File {
-  #[napi(factory)]
-  pub fn new(name: String, format: FileFormat) -> Self {
-    Self {
-      name: Some(name),
-      content: None,
-      format: Some(format),
-      required: true,
-    }
-  }
-
-  #[napi(factory)]
-  pub fn with_name(name: String) -> Self {
-    Self {
-      name: Some(name),
-      content: None,
-      format: None,
-      required: true,
-    }
-  }
-
-  #[napi(factory)]
-  pub fn from_str(content: String, format: FileFormat) -> Self {
-    Self {
-      name: None,
-      content: Some(content),
-      format: Some(format),
-      required: true,
-    }
-  }
-
-  #[napi]
-  pub fn required(&mut self, required: bool) -> &Self {
-    self.required = required;
-    self
-  }
-
-  #[napi]
-  pub fn format(&mut self, format: FileFormat) -> &Self {
-    self.format = Some(format);
-    self
-  }
-}
-
-#[napi]
-#[derive(Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct Environment {
-  pub(crate) prefix: Option<String>,
-  pub(crate) separator: Option<String>,
-  pub(crate) ignore_empty: bool,
-  pub(crate) keep_prefix: bool,
+    pub(crate) prefix: Option<String>,
+    pub(crate) separator: Option<String>,
+    pub(crate) ignore_empty: bool,
+    pub(crate) keep_prefix: bool,
 }
 
 #[napi]
 impl Environment {
-  #[napi(factory)]
-  pub fn with_prefix(prefix: String) -> Self {
-    Self {
-      prefix: Some(prefix),
-      separator: None,
-      ignore_empty: false,
-      keep_prefix: false,
+    #[napi(factory)]
+    pub fn with_prefix(prefix: String) -> Self {
+        Self {
+            prefix: Some(prefix),
+            separator: None,
+            ignore_empty: false,
+            keep_prefix: false,
+        }
     }
-  }
 
-  #[napi(factory)]
-  pub fn default() -> Self {
-    Self {
-      prefix: None,
-      separator: None,
-      ignore_empty: false,
-      keep_prefix: false,
+    #[napi(factory, js_name = "withPrefix")]
+    pub fn with_prefix_camel(prefix: String) -> Self {
+        Self::with_prefix(prefix)
     }
-  }
 
-  #[napi]
-  pub fn separator(&mut self, separator: String) -> &Self {
-    self.separator = Some(separator);
-    self
-  }
+    #[napi(factory)]
+    pub fn default() -> Self {
+        Self {
+            prefix: None,
+            separator: None,
+            ignore_empty: false,
+            keep_prefix: false,
+        }
+    }
 
-  #[napi]
-  pub fn ignore_empty(&mut self, ignore: bool) -> &Self {
-    self.ignore_empty = ignore;
-    self
-  }
+    #[napi]
+    pub fn separator(&mut self, separator: String) -> &Self {
+        self.separator = Some(separator);
+        self
+    }
 
-  #[napi]
-  pub fn keep_prefix(&mut self, keep: bool) -> &Self {
-    self.keep_prefix = keep;
-    self
-  }
+    #[napi]
+    pub fn ignore_empty(&mut self, ignore: bool) -> &Self {
+        self.ignore_empty = ignore;
+        self
+    }
+
+    #[napi(js_name = "ignoreEmpty")]
+    pub fn ignore_empty_camel(&mut self, ignore: bool) -> &Self {
+        self.ignore_empty(ignore)
+    }
+
+    #[napi]
+    pub fn keep_prefix(&mut self, keep: bool) -> &Self {
+        self.keep_prefix = keep;
+        self
+    }
+
+    #[napi(js_name = "keepPrefix")]
+    pub fn keep_prefix_camel(&mut self, keep: bool) -> &Self {
+        self.keep_prefix(keep)
+    }
+}
+
+impl Source for Environment {
+    fn clone_into_box(&self) -> Box<dyn Source + Send + Sync> {
+        Box::new(self.clone())
+    }
+
+    fn collect(&self) -> Result<Map<String, ConfigValue>, ConfigError> {
+        let mut env = ::config::Environment::default();
+        if let Some(ref p) = self.prefix {
+            env = env.prefix(p);
+        }
+        if let Some(ref s) = self.separator {
+            env = env.separator(s);
+        }
+        if self.ignore_empty {
+            env = env.ignore_empty(true);
+        }
+        if self.keep_prefix {
+            env = env.keep_prefix(true);
+        }
+        env.collect()
+    }
+
+    fn collect_to(&self, cache: &mut ConfigValue) -> Result<(), ConfigError> {
+        let mut env = ::config::Environment::default();
+        if let Some(ref p) = self.prefix {
+            env = env.prefix(p);
+        }
+        if let Some(ref s) = self.separator {
+            env = env.separator(s);
+        }
+        if self.ignore_empty {
+            env = env.ignore_empty(true);
+        }
+        if self.keep_prefix {
+            env = env.keep_prefix(true);
+        }
+        env.collect_to(cache)
+    }
 }
 
 /// A configuration builder
@@ -169,6 +146,11 @@ impl ConfigBuilder {
         Ok(self)
     }
 
+    #[napi(js_name = "setDefault")]
+    pub fn set_default_camel(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
+        self.set_default(key, value)
+    }
+
     #[napi]
     pub fn set_override(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
         let val: Value = serde_json::from_value(value)
@@ -179,6 +161,11 @@ impl ConfigBuilder {
             .set_override(&key, val)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
         Ok(self)
+    }
+
+    #[napi(js_name = "setOverride")]
+    pub fn set_override_camel(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
+        self.set_override(key, value)
     }
 
     #[napi]
@@ -199,21 +186,43 @@ impl ConfigBuilder {
         Ok(self)
     }
 
+    #[napi(js_name = "setOverrideOption")]
+    pub fn set_override_option_camel(
+        &mut self,
+        key: String,
+        value: Option<serde_json::Value>,
+    ) -> napi::Result<&Self> {
+        self.set_override_option(key, value)
+    }
+
     #[napi]
-    pub fn add_file(&mut self, file_path: String, format: Option<String>) -> napi::Result<&Self> {
-        let file = if let Some(fmt) = format {
-            File::new(file_path, fmt)?
-        } else {
-            File::with_name(file_path)
-        };
+    pub fn add_file(&mut self, file_path: String, format: Option<serde_json::Value>) -> napi::Result<&Self> {
+        let file = File::new(file_path, format)?;
         self.inner = self.inner.clone().add_source(file);
         Ok(self)
     }
 
+    #[napi(js_name = "addFile")]
+    pub fn add_file_camel(&mut self, file_path: String, format: Option<serde_json::Value>) -> napi::Result<&Self> {
+        self.add_file(file_path, format)
+    }
+
     #[napi]
-    pub fn add_source(&mut self, file: &File) -> &Self {
-        self.inner = self.inner.clone().add_source(file.clone());
+    pub fn add_source(&mut self, source: napi::bindgen_prelude::Either<&File, &Environment>) -> &Self {
+        match source {
+            napi::bindgen_prelude::Either::A(f) => {
+                self.inner = self.inner.clone().add_source(f.clone());
+            }
+            napi::bindgen_prelude::Either::B(e) => {
+                self.inner = self.inner.clone().add_source(e.clone());
+            }
+        }
         self
+    }
+
+    #[napi(js_name = "addSource")]
+    pub fn add_source_camel(&mut self, source: napi::bindgen_prelude::Either<&File, &Environment>) -> &Self {
+        self.add_source(source)
     }
 
     #[napi]
@@ -232,6 +241,11 @@ impl ConfigBuilder {
             .build_cloned()
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
         Ok(Config::new(inner_config))
+    }
+
+    #[napi(js_name = "buildCloned")]
+    pub fn build_cloned_camel(&self) -> napi::Result<Config> {
+        self.build_cloned()
     }
 }
 

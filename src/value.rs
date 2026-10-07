@@ -2,6 +2,7 @@ use config::{ConfigError, Value as InnerValue};
 use napi_derive::napi;
 use serde::de::{Deserializer, Visitor};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 
 /// A configuration value.
@@ -13,11 +14,14 @@ pub struct Value {
 
 #[napi]
 impl Value {
-    #[napi(factory)]
-    pub fn new(value: serde_json::Value) -> napi::Result<Value> {
-        let inner: InnerValue = serde_json::from_value(value)
+    #[napi(factory, ts_args_type = "value: any, origin?: string", ts_return_type = "Value")]
+    pub fn new(env: napi::Env, value: napi::Unknown, origin: Option<String>) -> napi::Result<Value> {
+        let json_val: serde_json::Value = env.from_js_value(value)?;
+        let inner_val: InnerValue = serde_json::from_value(json_val)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        Ok(Value { inner })
+        Ok(Value {
+            inner: InnerValue::new(origin.as_ref(), inner_val.kind),
+        })
     }
 
     #[napi]
@@ -33,12 +37,22 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
+    #[napi(js_name = "tryDeserialize")]
+    pub fn try_deserialize_camel(&self) -> napi::Result<serde_json::Value> {
+        self.try_deserialize()
+    }
+
     #[napi]
     pub fn into_bool(&self) -> napi::Result<bool> {
         self.inner
             .clone()
             .into_bool()
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi(js_name = "intoBool")]
+    pub fn into_bool_camel(&self) -> napi::Result<bool> {
+        self.into_bool()
     }
 
     #[napi]
@@ -49,13 +63,23 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
+    #[napi(js_name = "intoInt")]
+    pub fn into_int_camel(&self) -> napi::Result<i64> {
+        self.into_int()
+    }
+
     #[napi]
-    pub fn into_int128(&self) -> napi::Result<String> {
+    pub fn into_int128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_int128()
-            .map(|i| i.to_string())
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("i128 overflow")))
+    }
+
+    #[napi(js_name = "intoInt128")]
+    pub fn into_int128_camel(&self) -> napi::Result<i64> {
+        self.into_int128()
     }
 
     #[napi]
@@ -67,13 +91,23 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
+    #[napi(js_name = "intoUint")]
+    pub fn into_uint_camel(&self) -> napi::Result<i64> {
+        self.into_uint()
+    }
+
     #[napi]
-    pub fn into_uint128(&self) -> napi::Result<String> {
+    pub fn into_uint128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_uint128()
-            .map(|u| u.to_string())
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("u128 overflow")))
+    }
+
+    #[napi(js_name = "intoUint128")]
+    pub fn into_uint128_camel(&self) -> napi::Result<i64> {
+        self.into_uint128()
     }
 
     #[napi]
@@ -84,12 +118,22 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
+    #[napi(js_name = "intoFloat")]
+    pub fn into_float_camel(&self) -> napi::Result<f64> {
+        self.into_float()
+    }
+
     #[napi]
     pub fn into_string(&self) -> napi::Result<String> {
         self.inner
             .clone()
             .into_string()
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    #[napi(js_name = "intoString")]
+    pub fn into_string_camel(&self) -> napi::Result<String> {
+        self.into_string()
     }
 
     #[napi]
@@ -102,21 +146,28 @@ impl Value {
         Ok(arr.into_iter().map(|v| Value { inner: v }).collect())
     }
 
-    #[napi]
-    pub fn into_table(&self) -> napi::Result<serde_json::Value> {
+    #[napi(js_name = "intoArray")]
+    pub fn into_array_camel(&self) -> napi::Result<Vec<Value>> {
+        self.into_array()
+    }
+
+    #[napi(ts_return_type = "Record<string, Value>")]
+    pub fn into_table(&self) -> napi::Result<HashMap<String, Value>> {
         let table = self
             .inner
             .clone()
             .into_table()
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        serde_json::Value::deserialize(InnerValue::new(None, table))
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+        let mut map = HashMap::new();
+        for (k, v) in table {
+            map.insert(k, Value { inner: v });
+        }
+        Ok(map)
     }
-}
 
-impl Value {
-    pub(crate) fn from_inner(inner: InnerValue) -> Self {
-        Self { inner }
+    #[napi(js_name = "intoTable", ts_return_type = "Record<string, Value>")]
+    pub fn into_table_camel(&self) -> napi::Result<HashMap<String, Value>> {
+        self.into_table()
     }
 }
 
