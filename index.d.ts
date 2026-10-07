@@ -9,61 +9,82 @@
  */
 export declare const __napiBindingTarget: "native" | "wasm32-wasi" | "wasm32-wasip1";
 
+/** Represents data specific to builder in asynchronous state. */
+export declare class AsyncState {}
+
+/**
+ * A prioritized configuration repository.
+ *
+ * It maintains a set of configuration sources, fetches values to populate those, and provides
+ * them according to the source's priority.
+ */
 export declare class Config {
+  /** Creates new [`ConfigBuilder`] instance */
   static builder(): ConfigBuilder;
-  static try_from(from: unknown): Config;
-  get(key: string): unknown;
-  get_string(key: string): string;
-  get_int(key: string): number;
-  get_float(key: string): number;
-  get_bool(key: string): boolean;
-  get_table(key: string): Record<string, any>;
-  get_array(key: string): Array<any>;
-  try_deserialize(): unknown;
+  get cache(): any;
+  getString(key: string): string;
+  getInt(key: string): number;
+  getFloat(key: string): number;
+  getBool(key: string): boolean;
+  getTable(key: string): any;
+  getArray(key: string): Array<any>;
+  get(key: string): any;
+  tryDeserialize(): any;
+  static tryFrom(from: any): Config;
 }
 
+/** A configuration builder */
 export declare class ConfigBuilder {
   constructor();
-  set_default(key: string, value: any | unknown): this;
-  set_override(key: string, value: any | unknown): this;
-  set_override_option(key: string, value?: any | unknown | undefined | null): this;
-  add_source(source: File | Environment | Config): this;
+  setDefault(key: string, value: any): this;
+  setOverride(key: string, value: any): this;
+  setOverrideOption(key: string, value?: any | undefined | null): this;
+  addFile(filePath: string, format?: FileFormat | string | undefined | null): this;
+  addSource(source: File | Environment): this;
   build(): Config;
-  build_cloned(): Config;
+  buildCloned(): Config;
 }
 
+/** Represents data specific to builder in default state. */
+export declare class DefaultState {}
+
 export declare class Environment {
-  constructor();
-  static with_prefix(prefix: string): Environment;
+  static withPrefix(prefix: string): Environment;
+  static default(): Environment;
   separator(separator: string): this;
-  keep_prefix(keep: boolean): this;
+  ignoreEmpty(ignore: boolean): this;
+  keepPrefix(keep: boolean): this;
 }
 
 export declare class File {
-  static with_name(name: string): File;
-  static from_str(content: string, format: FileFormat): File;
+  static fromStr(content: string, format: FileFormat | string): File;
+  static new(name: string, format: FileFormat | string): File;
+  static withName(name: string): File;
+  required(required: boolean): this;
+  format(format: FileFormat | string): this;
 }
 
+/** A configuration value. */
 export declare class Value {
-  constructor(origin?: string | undefined | null, value?: unknown | undefined | null);
+  static new(value: any, origin?: string): Value;
   origin(): string | null;
-  into_bool(): boolean;
-  into_int(): number;
-  into_int128(): number;
-  into_uint(): number;
-  into_uint128(): number;
-  into_float(): number;
-  into_string(): string;
-  into_array(): Array<Value>;
-  into_table(): Record<string, Value>;
-  try_deserialize(): unknown;
+  tryDeserialize(): Value;
+  intoBool(): boolean;
+  intoInt(): number;
+  intoInt128(): number;
+  intoUint(): number;
+  intoUint128(): number;
+  intoFloat(): number;
+  intoString(): string;
+  intoArray(): Array<Value>;
+  intoTable(): Record<string, Value>;
 }
 
 export declare const enum FileFormat {
   Toml = 0,
   Json = 1,
-  Json5 = 2,
-  Ron = 3,
-  Yaml = 4,
-  Ini = 5,
+  Yaml = 2,
+  Ini = 3,
+  Ron = 4,
+  Json5 = 5,
 }
