@@ -1,51 +1,70 @@
-import { Config, ConfigBuilder, Environment, File, FileFormat } from "../index.js";
+import { ConfigBuilder, File, FileFormat } from "../index.js";
 
-// 1. Basic usage with ConfigBuilder
-console.log("--- 1. Basic ConfigBuilder Usage ---");
-const builder = new ConfigBuilder();
-builder
-  .setDefault("server.port", 8080)
-  .setDefault("server.host", "localhost")
-  .setDefault("debug", true)
-  .setOverride("server.port", 9000);
+// Demonstration of supported FileFormat types using File.fromStr
 
-const config = builder.build();
-console.log("Server Host:", config.getString("server.host"));
-console.log("Server Port:", config.getInt("server.port")); // 9000
-console.log("Debug Mode:", config.getBool("debug")); // true
+// 1. JSON
+const jsonSource = File.fromStr(JSON.stringify({ format: "JSON", port: 8080 }), FileFormat.Json);
 
-// 2. Loading File and Environment Sources
-console.log("\n--- 2. File and Environment Sources ---");
-const jsonSettings = JSON.stringify({
-  database: {
-    url: "postgres://localhost:5432/app",
-    pool_size: 10,
-  },
-  features: ["auth", "logging"],
-});
+// 2. TOML
+const tomlSource = File.fromStr(
+  `
+format = "TOML"
+port = 8081
+`,
+  FileFormat.Toml,
+);
 
-const fileSource = File.fromStr(jsonSettings, FileFormat.Json);
-const envSource = Environment.withPrefix("APP").separator("_");
+// 3. YAML
+const yamlSource = File.fromStr(
+  `
+format: YAML
+port: 8082
+`,
+  FileFormat.Yaml,
+);
 
-const appConfig = Config.builder()
-  .setDefault("database.pool_size", 5)
-  .addSource(fileSource)
-  .addSource(envSource)
-  .build();
+// 4. INI
+const iniSource = File.fromStr(
+  `
+format = INI
+port = 8083
+`,
+  FileFormat.Ini,
+);
 
-console.log("Database URL:", appConfig.getString("database.url"));
-console.log("Pool Size:", appConfig.getInt("database.pool_size"));
-console.log("Features:", appConfig.getArray("features"));
+// 5. RON
+const ronSource = File.fromStr(
+  `
+(
+    format: "RON",
+    port: 8084,
+)
+`,
+  FileFormat.Ron,
+);
 
-// 3. Serialization and Deserialization
-console.log("\n--- 3. Deserialization ---");
-const rawObject = {
-  app_name: "AlloyConfigApp",
-  version: "1.0.0",
-  metrics: { enabled: true, interval_ms: 1000 },
-};
+// 6. JSON5
+const json5Source = File.fromStr(
+  `
+{
+  // JSON5 comments supported
+  format: 'JSON5',
+  port: 8085,
+}
+`,
+  FileFormat.Json5,
+);
 
-const objectConfig = Config.tryFrom(rawObject);
-console.log("App Name:", objectConfig.getString("app_name"));
-console.log("Metrics Table:", objectConfig.getTable("metrics"));
-console.log("Entire Config Object:", objectConfig.tryDeserialize());
+const formats = [
+  { name: "JSON", source: jsonSource },
+  { name: "TOML", source: tomlSource },
+  { name: "YAML", source: yamlSource },
+  { name: "INI", source: iniSource },
+  { name: "RON", source: ronSource },
+  { name: "JSON5", source: json5Source },
+];
+
+for (const { name, source } of formats) {
+  const config = new ConfigBuilder().addSource(source).build();
+  console.log(`[${name}] format: ${config.getString("format")}, port: ${config.getInt("port")}`);
+}
