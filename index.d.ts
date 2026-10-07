@@ -27,6 +27,7 @@ export declare class ConfigBuilder {
   set_default(key: string, value: any | unknown): this;
   set_override(key: string, value: any | unknown): this;
   set_override_option(key: string, value?: any | unknown | undefined | null): this;
+  setSchema(schema: any): this;
   add_source(source: File | Environment | Config): this;
   build(): Config;
   build_cloned(): Config;

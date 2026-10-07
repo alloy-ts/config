@@ -907,6 +907,11 @@ const { Config, ConfigBuilder, Environment, File, Value, FileFormat } = nativeBi
 Config.File = File;
 Config.File.Format = FileFormat;
 
+ConfigBuilder.prototype.setSchema = function (schema) {
+  this._schema = schema;
+  return this;
+};
+
 const originalAddSource = ConfigBuilder.prototype.addSource;
 ConfigBuilder.prototype.addSource = function (source) {
   if (!source) return this;

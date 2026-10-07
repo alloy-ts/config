@@ -15,6 +15,12 @@ const NativeConfig = native.Config;
 NativeConfig.File = File;
 (NativeConfig.File as any).Format = FileFormat;
 
+// Support setSchema method on ConfigBuilder
+ConfigBuilder.prototype.setSchema = function (schema: any) {
+  (this as any)._schema = schema;
+  return this;
+};
+
 // Polymorphic addSource dispatching to addFileSource, addEnvSource, addConfigSource
 const originalAddSource = ConfigBuilder.prototype.addSource;
 ConfigBuilder.prototype.addSource = function (source: any) {
