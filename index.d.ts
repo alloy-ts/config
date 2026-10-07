@@ -11,53 +11,54 @@ export declare const __napiBindingTarget: "native" | "wasm32-wasi" | "wasm32-was
 
 export declare class Config {
   static builder(): ConfigBuilder;
-  static try_from(from: unknown): Config;
+  static tryFrom(from: unknown): Config;
   get(key: string): unknown;
-  get_string(key: string): string;
-  get_int(key: string): number;
-  get_float(key: string): number;
-  get_bool(key: string): boolean;
-  get_table(key: string): Record<string, any>;
-  get_array(key: string): Array<any>;
-  try_deserialize(): unknown;
+  getString(key: string): string;
+  getInt(key: string): number;
+  getFloat(key: string): number;
+  getBool(key: string): boolean;
+  getTable(key: string): Record<string, any>;
+  getArray(key: string): Array<any>;
+  tryDeserialize(): unknown;
 }
 
 export declare class ConfigBuilder {
   constructor();
-  set_default(key: string, value: any | unknown): this;
-  set_override(key: string, value: any | unknown): this;
-  set_override_option(key: string, value?: any | unknown | undefined | null): this;
-  add_source(source: File | Environment | Config): this;
+  setDefault(key: string, value: any | unknown): this;
+  setOverride(key: string, value: any | unknown): this;
+  setOverrideOption(key: string, value?: any | unknown | undefined | null): this;
+  addSource(source: File | Environment | Config): this;
   build(): Config;
-  build_cloned(): Config;
+  buildCloned(): Config;
 }
 
 export declare class Environment {
   constructor();
-  static with_prefix(prefix: string): Environment;
+  static withPrefix(prefix: string): Environment;
   separator(separator: string): this;
-  keep_prefix(keep: boolean): this;
+  keepPrefix(keep: boolean): this;
 }
 
 export declare class File {
   constructor(name: string, format: FileFormat);
-  static with_name(name: string): File;
-  static from_str(content: string, format: FileFormat): File;
+  static withName(name: string): File;
+  static fromStr(content: string, format: FileFormat): File;
+  required(required: boolean): this;
 }
 
 export declare class Value {
   constructor(origin?: string | undefined | null, value?: unknown | undefined | null);
   origin(): string | null;
-  into_bool(): boolean;
-  into_int(): number;
-  into_int128(): number;
-  into_uint(): number;
-  into_uint128(): number;
-  into_float(): number;
-  into_string(): string;
-  into_array(): Array<Value>;
-  into_table(): Record<string, Value>;
-  try_deserialize(): unknown;
+  intoBool(): boolean;
+  intoInt(): number;
+  intoInt128(): number;
+  intoUint(): number;
+  intoUint128(): number;
+  intoFloat(): number;
+  intoString(): string;
+  intoArray(): Array<Value>;
+  intoTable(): Record<string, Value>;
+  tryDeserialize(): unknown;
 }
 
 export declare const enum FileFormat {

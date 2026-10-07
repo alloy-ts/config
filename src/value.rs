@@ -39,7 +39,7 @@ impl Value {
         self.inner.origin().map(|s| s.to_string())
     }
 
-    #[napi(js_name = "into_bool")]
+    #[napi]
     pub fn into_bool(&self) -> napi::Result<bool> {
         self.inner
             .clone()
@@ -47,7 +47,7 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "into_int")]
+    #[napi]
     pub fn into_int(&self) -> napi::Result<i64> {
         self.inner
             .clone()
@@ -55,7 +55,7 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "into_int128")]
+    #[napi]
     pub fn into_int128(&self) -> napi::Result<i64> {
         let val = self
             .inner
@@ -65,7 +65,7 @@ impl Value {
         val.try_into().map_err(|e: std::num::TryFromIntError| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "into_uint")]
+    #[napi]
     pub fn into_uint(&self) -> napi::Result<i64> {
         let u = self
             .inner
@@ -75,7 +75,7 @@ impl Value {
         Ok(u as i64)
     }
 
-    #[napi(js_name = "into_uint128")]
+    #[napi]
     pub fn into_uint128(&self) -> napi::Result<i64> {
         let val = self
             .inner
@@ -85,7 +85,7 @@ impl Value {
         val.try_into().map_err(|e: std::num::TryFromIntError| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "into_float")]
+    #[napi]
     pub fn into_float(&self) -> napi::Result<f64> {
         self.inner
             .clone()
@@ -93,7 +93,7 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "into_string")]
+    #[napi]
     pub fn into_string(&self) -> napi::Result<String> {
         self.inner
             .clone()
@@ -101,7 +101,7 @@ impl Value {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "into_array")]
+    #[napi]
     pub fn into_array(&self) -> napi::Result<Vec<Value>> {
         let arr = self
             .inner
@@ -111,7 +111,7 @@ impl Value {
         Ok(arr.into_iter().map(|v| Value { inner: v }).collect())
     }
 
-    #[napi(js_name = "into_table")]
+    #[napi]
     pub fn into_table(&self) -> napi::Result<HashMap<String, Value>> {
         let table = self
             .inner
@@ -124,7 +124,7 @@ impl Value {
             .collect())
     }
 
-    #[napi(js_name = "try_deserialize")]
+    #[napi]
     pub fn try_deserialize(&self, env: Env) -> napi::Result<Unknown<'_>> {
         let serde_val: serde_json::Value = self
             .inner

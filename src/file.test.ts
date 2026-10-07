@@ -1,18 +1,18 @@
 import { expect, test } from "vite-plus/test";
-import { Config, File, type FileFormat } from "./main.ts";
+import { Config, File, FileFormat } from "./main.ts";
 
-test("File.from_str creating file source from JSON content", () => {
-  const file = File.from_str('{"key": "value"}', 1 as unknown as FileFormat);
-  const config = Config.builder().add_source(file).build();
-  expect(config.get_string("key")).toBe("value");
+test("File.fromStr creating file source from JSON content", () => {
+  const file = File.fromStr('{"key": "value"}', FileFormat.Json);
+  const config = Config.builder().addSource(file).build();
+  expect(config.getString("key")).toBe("value");
 });
 
 test("File constructor new File(name, format)", () => {
-  const file = new File("non_existent_config.json", 1 as unknown as FileFormat);
+  const file = new File("non_existent_config.json", FileFormat.Json);
   expect(file).toBeDefined();
 });
 
-test("File.with_name", () => {
-  const file = File.with_name("test_settings");
+test("File.withName", () => {
+  const file = File.withName("test_settings");
   expect(file).toBeDefined();
 });

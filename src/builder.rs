@@ -34,7 +34,7 @@ impl ConfigBuilder {
         }
     }
 
-    #[napi(js_name = "set_default")]
+    #[napi]
     pub fn set_default(
         &mut self,
         env: Env,
@@ -50,7 +50,7 @@ impl ConfigBuilder {
         Ok(self)
     }
 
-    #[napi(js_name = "set_override")]
+    #[napi]
     pub fn set_override(
         &mut self,
         env: Env,
@@ -66,7 +66,7 @@ impl ConfigBuilder {
         Ok(self)
     }
 
-    #[napi(js_name = "set_override_option")]
+    #[napi]
     pub fn set_override_option(
         &mut self,
         env: Env,
@@ -84,7 +84,7 @@ impl ConfigBuilder {
         Ok(self)
     }
 
-    #[napi(js_name = "add_source")]
+    #[napi]
     pub fn add_source(
         &mut self,
         source: Either3<&File, &Environment, &Config>,
@@ -117,7 +117,7 @@ impl ConfigBuilder {
         Ok(Config { inner: config })
     }
 
-    #[napi(js_name = "build_cloned")]
+    #[napi]
     pub fn build_cloned(&self) -> napi::Result<Config> {
         self.build()
     }

@@ -1,17 +1,17 @@
 import { expect, test } from "vite-plus/test";
-import { Config, File, type FileFormat, Value, type Value as ValueType } from "./main.ts";
+import { Config, File, FileFormat, Value, type Value as ValueType } from "./main.ts";
 
 test("ConfigBuilder with defaults and overrides", () => {
   const builder = Config.builder();
-  builder.set_default("host", "localhost");
-  builder.set_default("port", 8080);
-  builder.set_override("debug", true);
+  builder.setDefault("host", "localhost");
+  builder.setDefault("port", 8080);
+  builder.setOverride("debug", true);
 
   const config = builder.build();
 
-  expect(config.get_string("host")).toBe("localhost");
-  expect(config.get_int("port")).toBe(8080);
-  expect(config.get_bool("debug")).toBe(true);
+  expect(config.getString("host")).toBe("localhost");
+  expect(config.getInt("port")).toBe(8080);
+  expect(config.getBool("debug")).toBe(true);
 });
 
 test("Config with File source (JSON string)", () => {
@@ -23,20 +23,20 @@ test("Config with File source (JSON string)", () => {
     features: ["a", "b", "c"],
   });
 
-  const file = File.from_str(jsonContent, 1 as unknown as FileFormat);
-  const config = Config.builder().add_source(file).build();
+  const file = File.fromStr(jsonContent, FileFormat.Json);
+  const config = Config.builder().addSource(file).build();
 
-  expect(config.get_string("app.name")).toBe("alloy");
-  expect(config.get_int("app.version")).toBe(1);
+  expect(config.getString("app.name")).toBe("alloy");
+  expect(config.getInt("app.version")).toBe(1);
 
-  const arrayValues = config.get_array("features");
-  expect(arrayValues.map((v: ValueType) => v.into_string())).toEqual(["a", "b", "c"]);
+  const arrayValues = config.getArray("features");
+  expect(arrayValues.map((v: ValueType) => v.intoString())).toEqual(["a", "b", "c"]);
 
-  const table = config.get_table("app");
-  expect(table["name"].into_string()).toBe("alloy");
+  const table = config.getTable("app");
+  expect((table["name"] as ValueType).intoString()).toBe("alloy");
 });
 
-test("Config try_deserialize and try_from", () => {
+test("Config tryDeserialize and tryFrom", () => {
   const data = {
     database: {
       url: "postgres://localhost:5432/db",
@@ -44,16 +44,16 @@ test("Config try_deserialize and try_from", () => {
     },
   };
 
-  const config = Config.try_from(data);
-  expect(config.get_string("database.url")).toBe("postgres://localhost:5432/db");
-  expect(config.get_int("database.max_connections")).toBe(10);
+  const config = Config.tryFrom(data);
+  expect(config.getString("database.url")).toBe("postgres://localhost:5432/db");
+  expect(config.getInt("database.max_connections")).toBe(10);
 
-  const deserialized = config.try_deserialize();
+  const deserialized = config.tryDeserialize();
   expect(deserialized).toEqual(data);
 });
 
 test("Value class methods", () => {
   const val = new Value("test_origin", "foo");
-  expect(val.into_string()).toBe("foo");
+  expect(val.intoString()).toBe("foo");
   expect(val.origin()).toBe("test_origin");
 });

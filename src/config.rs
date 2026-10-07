@@ -18,7 +18,7 @@ impl Config {
         ConfigBuilder::new()
     }
 
-    #[napi(factory, js_name = "try_from")]
+    #[napi(factory)]
     pub fn try_from(env: Env, from: Unknown) -> napi::Result<Config> {
         let serde_val: serde_json::Value = env.from_js_value(from)?;
         let cfg = config::Config::try_from(&serde_val)
@@ -38,35 +38,35 @@ impl Config {
         env.to_js_value(&serde_val)
     }
 
-    #[napi(js_name = "get_string")]
+    #[napi]
     pub fn get_string(&self, key: String) -> napi::Result<String> {
         self.inner
             .get_string(&key)
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "get_int")]
+    #[napi]
     pub fn get_int(&self, key: String) -> napi::Result<i64> {
         self.inner
             .get_int(&key)
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "get_float")]
+    #[napi]
     pub fn get_float(&self, key: String) -> napi::Result<f64> {
         self.inner
             .get_float(&key)
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "get_bool")]
+    #[napi]
     pub fn get_bool(&self, key: String) -> napi::Result<bool> {
         self.inner
             .get_bool(&key)
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(js_name = "get_table")]
+    #[napi]
     pub fn get_table(&self, key: String) -> napi::Result<HashMap<String, Value>> {
         let table = self
             .inner
@@ -78,7 +78,7 @@ impl Config {
             .collect())
     }
 
-    #[napi(js_name = "get_array")]
+    #[napi]
     pub fn get_array(&self, key: String) -> napi::Result<Vec<Value>> {
         let arr = self
             .inner
@@ -87,7 +87,7 @@ impl Config {
         Ok(arr.into_iter().map(|v| Value { inner: v }).collect())
     }
 
-    #[napi(js_name = "try_deserialize")]
+    #[napi]
     pub fn try_deserialize(&self, env: Env) -> napi::Result<Unknown<'_>> {
         let serde_val: serde_json::Value = self
             .inner
