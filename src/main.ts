@@ -31,6 +31,41 @@ ConfigBuilder.prototype.setSchema = function (schema: any) {
   return this;
 };
 
+// Enhance build to pass _schema onto Config instance
+const originalBuild = ConfigBuilder.prototype.build;
+ConfigBuilder.prototype.build = function () {
+  const config = originalBuild.call(this);
+  if ((this as any)._schema) {
+    (config as any)._schema = (this as any)._schema;
+  }
+  return config;
+};
+
+const originalBuildCloned = ConfigBuilder.prototype.buildCloned;
+ConfigBuilder.prototype.buildCloned = function () {
+  const config = originalBuildCloned.call(this);
+  if ((this as any)._schema) {
+    (config as any)._schema = (this as any)._schema;
+  }
+  return config;
+};
+
+// Enhance tryDeserialize on Config to validate/infer using schema if present
+const originalTryDeserialize = NativeConfig.prototype.tryDeserialize;
+NativeConfig.prototype.tryDeserialize = function () {
+  const data = originalTryDeserialize.call(this);
+  if ((this as any)._schema) {
+    const schema = (this as any)._schema;
+    if (typeof schema.parse === "function") {
+      return schema.parse(data);
+    }
+    if (typeof schema.validate === "function") {
+      return schema.validate(data);
+    }
+  }
+  return data;
+};
+
 // Polymorphic addSource dispatching to addFileSource, addEnvSource, addConfigSource
 const originalAddSource = ConfigBuilder.prototype.addSource;
 ConfigBuilder.prototype.addSource = function (source: any) {

@@ -922,6 +922,41 @@ ConfigBuilder.prototype.setSchema = function (schema) {
   return this;
 };
 
+// Enhance build to pass _schema onto Config instance
+const originalBuild = ConfigBuilder.prototype.build;
+ConfigBuilder.prototype.build = function () {
+  const config = originalBuild.call(this);
+  if (this._schema) {
+    config._schema = this._schema;
+  }
+  return config;
+};
+
+const originalBuildCloned = ConfigBuilder.prototype.buildCloned;
+ConfigBuilder.prototype.buildCloned = function () {
+  const config = originalBuildCloned.call(this);
+  if (this._schema) {
+    config._schema = this._schema;
+  }
+  return config;
+};
+
+// Enhance tryDeserialize on Config to validate/infer using schema if present
+const originalTryDeserialize = Config.prototype.tryDeserialize;
+Config.prototype.tryDeserialize = function () {
+  const data = originalTryDeserialize.call(this);
+  if (this._schema) {
+    const schema = this._schema;
+    if (typeof schema.parse === "function") {
+      return schema.parse(data);
+    }
+    if (typeof schema.validate === "function") {
+      return schema.validate(data);
+    }
+  }
+  return data;
+};
+
 const originalAddSource = ConfigBuilder.prototype.addSource;
 ConfigBuilder.prototype.addSource = function (source) {
   if (!source) return this;
