@@ -1,6 +1,6 @@
 use napi_derive::napi;
 
-#[napi]
+#[napi(string_enum = "lowercase")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileFormat {
     Ini,
@@ -24,6 +24,20 @@ impl From<FileFormat> for config::FileFormat {
     }
 }
 
+impl From<config::FileFormat> for FileFormat {
+    fn from(f: config::FileFormat) -> Self {
+        match f {
+            config::FileFormat::Ini => FileFormat::Ini,
+            config::FileFormat::Json => FileFormat::Json,
+            config::FileFormat::Json5 => FileFormat::Json5,
+            config::FileFormat::Ron => FileFormat::Ron,
+            config::FileFormat::Toml => FileFormat::Toml,
+            config::FileFormat::Yaml => FileFormat::Yaml,
+            _ => FileFormat::Json,
+        }
+    }
+}
+
 #[napi]
 #[derive(Clone, Debug)]
 pub struct File {
@@ -35,17 +49,27 @@ pub struct File {
 
 #[napi]
 impl File {
-    #[napi(factory)]
-    pub fn with_name(name: String) -> Self {
+    #[napi(constructor)]
+    pub fn new(name_or_text: String, format: Option<FileFormat>) -> Self {
         Self {
-            name: Some(name),
+            name: Some(name_or_text),
             text: None,
-            format: None,
-            required: true,
+            format,
+            required: false,
         }
     }
 
-    #[napi(factory)]
+    #[napi(factory, js_name = "withName")]
+    pub fn with_name(name: String, format: Option<FileFormat>) -> Self {
+        Self {
+            name: Some(name),
+            text: None,
+            format,
+            required: false,
+        }
+    }
+
+    #[napi(factory, js_name = "fromStr")]
     pub fn from_str(text: String, format: FileFormat) -> Self {
         Self {
             name: None,
@@ -55,27 +79,61 @@ impl File {
         }
     }
 
-    #[napi(constructor)]
-    pub fn new(name_or_text: String, format: Option<FileFormat>) -> Self {
+    #[napi(factory, js_name = "fromFilename")]
+    pub fn from_filename(filename: String) -> Self {
         Self {
-            name: Some(name_or_text),
+            name: Some(filename),
             text: None,
-            format,
-            required: true,
+            format: None,
+            required: false,
         }
     }
 
     #[napi]
-    pub fn format(&mut self, format: FileFormat) -> Self {
-        let mut c = self.clone();
-        c.format = Some(format);
-        c
+    pub fn format(&mut self, format: FileFormat) -> &Self {
+        self.format = Some(format);
+        self
     }
 
     #[napi]
-    pub fn required(&mut self, required: bool) -> Self {
-        let mut c = self.clone();
-        c.required = required;
-        c
+    pub fn required(&mut self, required: bool) -> &Self {
+        self.required = required;
+        self
+    }
+}
+
+impl File {
+    pub(crate) fn to_config_source(&self) -> Result<Box<dyn config::Source + Send + Sync>, config::ConfigError> {
+        if let Some(text) = &self.text {
+            let fmt: config::FileFormat = self.format.unwrap_or(FileFormat::Json).into();
+            let f = config::File::<config::FileSourceString, config::FileFormat>::from_str(text, fmt).required(self.required);
+            Ok(Box::new(f))
+        } else if let Some(name) = &self.name {
+            if let Some(fmt) = self.format {
+                let f = config::File::<config::FileSourceFile, config::FileFormat>::new(name, fmt.into()).required(self.required);
+                Ok(Box::new(f))
+            } else {
+                let f = config::File::<config::FileSourceFile, config::FileFormat>::with_name(name).required(self.required);
+                Ok(Box::new(f))
+            }
+        } else {
+            Err(config::ConfigError::Message("File source must have a name or content string".into()))
+        }
+    }
+}
+
+impl config::Source for File {
+    fn clone_into_box(&self) -> Box<dyn config::Source + Send + Sync> {
+        Box::new(self.clone())
+    }
+
+    fn collect(&self) -> Result<config::Map<String, config::Value>, config::ConfigError> {
+        let source_box = self.to_config_source()?;
+        source_box.collect()
+    }
+
+    fn collect_to(&self, cache: &mut config::Value) -> Result<(), config::ConfigError> {
+        let source_box = self.to_config_source()?;
+        source_box.collect_to(cache)
     }
 }

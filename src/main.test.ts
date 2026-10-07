@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { Config, ConfigBuilder, Environment, File, FileFormat, Value } from "../dist/index.js";
+import { Config, ConfigBuilder, Environment, File, FileFormat, Value } from "./main.ts";
 
 test("ConfigBuilder sets defaults, overrides, and builds Config", () => {
   const builder = new ConfigBuilder();
@@ -45,8 +45,8 @@ test("Config reading JSON file string source via File.fromStr and File.new", () 
   expect(config.getString("app.name")).toBe("alloy-test");
   expect(config.getInt("app.version")).toBe(1);
   expect(config.getFloat("app.rate")).toBe(4.5);
-  expect(config.getArray("app.features")).toEqual(["auth", "billing"]);
-  expect(config.getTable("app.metadata")).toEqual({ env: "test" });
+  expect(config.getArray("app.features").map((v) => v.intoString())).toEqual(["auth", "billing"]);
+  expect(config.getTable("app.metadata")["env"]?.intoString()).toBe("test");
   expect(config.get("app.name")).toBe("alloy-test");
 
   const file2 = File.new("config/settings", FileFormat.Json);
@@ -54,8 +54,8 @@ test("Config reading JSON file string source via File.fromStr and File.new", () 
 });
 
 test("Config Environment source", () => {
-  process.env.APP_DATABASE_URL = "postgres://localhost/db";
-  process.env.APP_MAX_CONNECTIONS = "10";
+  process.env["APP_DATABASE_URL"] = "postgres://localhost/db";
+  process.env["APP_MAX_CONNECTIONS"] = "10";
 
   const envSource = Environment.withPrefix("APP").separator("_");
   const builder = new ConfigBuilder().addSource(envSource);
@@ -64,8 +64,8 @@ test("Config Environment source", () => {
   expect(config.getString("database.url")).toBe("postgres://localhost/db");
   expect(config.getString("max.connections")).toBe("10");
 
-  delete process.env.APP_DATABASE_URL;
-  delete process.env.APP_MAX_CONNECTIONS;
+  delete process.env["APP_DATABASE_URL"];
+  delete process.env["APP_MAX_CONNECTIONS"];
 });
 
 test("Config tryDeserialize and Config.tryFrom", () => {
@@ -87,29 +87,29 @@ test("Config tryDeserialize and Config.tryFrom", () => {
 });
 
 test("Value class methods", () => {
-  const vBool = Value.new(true, "origin_test");
+  const vBool = new Value(true, "origin_test");
   expect(vBool.origin()).toBe("origin_test");
   expect(vBool.intoBool()).toBe(true);
 
-  const vInt = Value.new(42);
+  const vInt = new Value(42);
   expect(vInt.intoInt()).toBe(42);
   expect(vInt.intoUint()).toBe(42);
   expect(vInt.intoInt128()).toBe(42);
 
-  const vFloat = Value.new(3.14);
+  const vFloat = new Value(3.14);
   expect(vFloat.intoFloat()).toBe(3.14);
 
-  const vString = Value.new("hello");
+  const vString = new Value("hello");
   expect(vString.intoString()).toBe("hello");
 
-  const vArray = Value.new([1, 2, 3]);
+  const vArray = new Value([1, 2, 3]);
   const arr = vArray.intoArray();
   expect(arr.length).toBe(3);
-  expect(arr[0].intoInt()).toBe(1);
+  expect(arr[0]?.intoInt()).toBe(1);
 
-  const vTable = Value.new({ k: "v" });
+  const vTable = new Value({ k: "v" });
   const tbl = vTable.intoTable();
-  expect(tbl.k.intoString()).toBe("v");
+  expect(tbl["k"]?.intoString()).toBe("v");
 });
 
 test("ConfigBuilder buildCloned allows multiple builds", () => {

@@ -13,7 +13,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "node build.js && vp pack",
+    "build": "node build.js && vp pack && node -e 'fs.writeFileSync(\"dist/index.js\", \"export * from \\\"../index.js\\\";\\n\")'",
     "build:napi": "node build.js",
     "build:release": "node build.js --release",
     "dev": "vp pack --watch",
@@ -37,10 +37,11 @@
     "typescript": "^7.0.2"
   },
   "overrides": {
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0-rc.1"
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0"
   },
   "napi": {
     "binaryName": "alloy_config",
+    "constEnum": false,
     "targets": [
       "x86_64-apple-darwin",
       "aarch64-apple-darwin",
