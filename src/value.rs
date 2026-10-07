@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use napi_derive::napi;
 use serde_json::Value as JsonValue;
 
-pub(crate) fn config_value_to_json(val: &config::Value) -> JsonValue {
+pub fn config_value_to_json(val: &config::Value) -> JsonValue {
     match &val.kind {
         config::ValueKind::Nil => JsonValue::Null,
         config::ValueKind::Boolean(b) => JsonValue::Bool(*b),
@@ -24,6 +24,39 @@ pub(crate) fn config_value_to_json(val: &config::Value) -> JsonValue {
         config::ValueKind::Array(a) => {
             let arr: Vec<JsonValue> = a.iter().map(config_value_to_json).collect();
             JsonValue::Array(arr)
+        }
+    }
+}
+
+pub fn json_to_config_value(val: &JsonValue) -> napi::Result<config::Value> {
+    match val {
+        JsonValue::Null => Ok(config::Value::new(None, config::ValueKind::Nil)),
+        JsonValue::Bool(b) => Ok(config::Value::new(None, *b)),
+        JsonValue::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Ok(config::Value::new(None, i))
+            } else if let Some(u) = n.as_u64() {
+                Ok(config::Value::new(None, u as i64))
+            } else if let Some(f) = n.as_f64() {
+                Ok(config::Value::new(None, f))
+            } else {
+                Ok(config::Value::new(None, config::ValueKind::Nil))
+            }
+        }
+        JsonValue::String(s) => Ok(config::Value::new(None, s.clone())),
+        JsonValue::Array(arr) => {
+            let mut config_arr = Vec::new();
+            for item in arr {
+                config_arr.push(json_to_config_value(item)?);
+            }
+            Ok(config::Value::new(None, config_arr))
+        }
+        JsonValue::Object(map) => {
+            let mut config_map = config::Map::new();
+            for (k, v) in map {
+                config_map.insert(k.clone(), json_to_config_value(v)?);
+            }
+            Ok(config::Value::new(None, config_map))
         }
     }
 }
@@ -101,16 +134,21 @@ pub struct Value {
 
 #[napi]
 impl Value {
-    #[napi(constructor)]
-    pub fn new(origin: Option<String>, kind: JsonValue) -> napi::Result<Self> {
-        let config_val: config::Value = serde_json::from_value(kind)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        Ok(Self {
-            inner: config::Value::new(origin.as_ref(), config_val.kind),
-        })
+    #[napi(factory, js_name = "new", ts_args_type = "val: any, origin?: string")]
+    pub fn new(val: JsonValue, origin: Option<String>) -> napi::Result<Self> {
+        let mut config_val = json_to_config_value(&val)?;
+        if let Some(orig) = origin {
+            config_val = config::Value::new(Some(&orig), config_val.kind);
+        }
+        Ok(Self { inner: config_val })
     }
 
-    #[napi(getter)]
+    #[napi(constructor, ts_args_type = "val: any, origin?: string")]
+    pub fn new_constructor(val: JsonValue, origin: Option<String>) -> napi::Result<Self> {
+        Self::new(val, origin)
+    }
+
+    #[napi]
     pub fn origin(&self) -> Option<String> {
         self.inner.origin().map(|s| s.to_string())
     }
@@ -120,63 +158,63 @@ impl Value {
         self.inner.kind.clone().into()
     }
 
-    #[napi]
+    #[napi(js_name = "intoBool")]
     pub fn into_bool(&self) -> napi::Result<bool> {
         self.inner.clone().into_bool().map_err(to_napi_err)
     }
 
-    #[napi]
+    #[napi(js_name = "intoInt")]
     pub fn into_int(&self) -> napi::Result<i64> {
         self.inner.clone().into_int().map_err(to_napi_err)
     }
 
-    #[napi]
-    pub fn into_int128(&self) -> napi::Result<String> {
+    #[napi(js_name = "intoInt128")]
+    pub fn into_int128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_int128()
-            .map(|i| i.to_string())
             .map_err(to_napi_err)
+            .and_then(|i| i64::try_from(i).map_err(|e| napi::Error::from_reason(e.to_string())))
     }
 
-    #[napi]
+    #[napi(js_name = "intoUint")]
     pub fn into_uint(&self) -> napi::Result<i64> {
         let val = self.inner.clone().into_uint().map_err(to_napi_err)?;
         i64::try_from(val).map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi]
-    pub fn into_uint128(&self) -> napi::Result<String> {
+    #[napi(js_name = "intoUint128")]
+    pub fn into_uint128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_uint128()
-            .map(|u| u.to_string())
             .map_err(to_napi_err)
+            .and_then(|u| i64::try_from(u).map_err(|e| napi::Error::from_reason(e.to_string())))
     }
 
-    #[napi]
+    #[napi(js_name = "intoFloat")]
     pub fn into_float(&self) -> napi::Result<f64> {
         self.inner.clone().into_float().map_err(to_napi_err)
     }
 
-    #[napi]
+    #[napi(js_name = "intoString")]
     pub fn into_string(&self) -> napi::Result<String> {
         self.inner.clone().into_string().map_err(to_napi_err)
     }
 
-    #[napi]
+    #[napi(js_name = "intoArray")]
     pub fn into_array(&self) -> napi::Result<Vec<Value>> {
         let arr = self.inner.clone().into_array().map_err(to_napi_err)?;
         Ok(arr.into_iter().map(|v| Value { inner: v }).collect())
     }
 
-    #[napi]
+    #[napi(js_name = "intoTable")]
     pub fn into_table(&self) -> napi::Result<HashMap<String, Value>> {
         let table = self.inner.clone().into_table().map_err(to_napi_err)?;
         Ok(table.into_iter().map(|(k, v)| (k, Value { inner: v })).collect())
     }
 
-    #[napi]
+    #[napi(js_name = "tryDeserialize")]
     pub fn try_deserialize(&self) -> napi::Result<JsonValue> {
         Ok(config_value_to_json(&self.inner))
     }
