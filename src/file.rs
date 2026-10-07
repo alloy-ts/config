@@ -1,22 +1,59 @@
 use config::{
-    ConfigError, File as InnerFile, FileFormat, FileSourceFile, FileSourceString, Map, Source, Value as ConfigValue,
+    ConfigError, File as InnerFile, FileFormat as InnerFileFormat, FileSourceFile, FileSourceString,
+    Map, Source, Value as ConfigValue,
 };
+use napi::bindgen_prelude::Either;
 use napi_derive::napi;
 use std::path::{Path, PathBuf};
+
+use crate::builder::FileFormat;
+
+pub(crate) fn parse_file_format(format: Either<FileFormat, String>) -> napi::Result<InnerFileFormat> {
+    match format {
+        Either::A(fmt) => Ok(fmt.into()),
+        Either::B(s) => match s.to_lowercase().as_str() {
+            "json" => Ok(InnerFileFormat::Json),
+            "toml" => Ok(InnerFileFormat::Toml),
+            "yaml" | "yml" => Ok(InnerFileFormat::Yaml),
+            "ini" => Ok(InnerFileFormat::Ini),
+            "ron" => Ok(InnerFileFormat::Ron),
+            "json5" => Ok(InnerFileFormat::Json5),
+            other => Err(napi::Error::from_reason(format!(
+                "Unsupported file format: {}",
+                other
+            ))),
+        },
+    }
+}
 
 #[napi]
 #[derive(Clone, Debug)]
 pub struct File {
-    pub(crate) inner_name: Option<InnerFile<FileSourceFile, FileFormat>>,
-    pub(crate) inner_str: Option<InnerFile<FileSourceString, FileFormat>>,
+    pub(crate) inner_name: Option<InnerFile<FileSourceFile, InnerFileFormat>>,
+    pub(crate) inner_str: Option<InnerFile<FileSourceString, InnerFileFormat>>,
 }
 
 #[napi]
 impl File {
+    #[napi(constructor)]
+    pub fn new(name: String, format: Either<FileFormat, String>) -> napi::Result<Self> {
+        let fmt = parse_file_format(format)?;
+        let inner = InnerFile::new(&name, fmt);
+        Ok(File {
+            inner_name: Some(inner),
+            inner_str: None,
+        })
+    }
+
+    #[napi(factory, js_name = "new")]
+    pub fn create_new(name: String, format: Either<FileFormat, String>) -> napi::Result<Self> {
+        Self::new(name, format)
+    }
+
     #[napi(factory)]
-    pub fn from_str(s: String, format: String) -> napi::Result<File> {
-        let file_format = parse_format(&format)?;
-        let inner = InnerFile::from_str(&s, file_format);
+    pub fn from_str(s: String, format: Either<FileFormat, String>) -> napi::Result<Self> {
+        let fmt = parse_file_format(format)?;
+        let inner = InnerFile::from_str(&s, fmt);
         Ok(File {
             inner_name: None,
             inner_str: Some(inner),
@@ -24,17 +61,7 @@ impl File {
     }
 
     #[napi(factory)]
-    pub fn new(name: String, format: String) -> napi::Result<File> {
-        let file_format = parse_format(&format)?;
-        let inner = InnerFile::new(&name, file_format);
-        Ok(File {
-            inner_name: Some(inner),
-            inner_str: None,
-        })
-    }
-
-    #[napi(factory)]
-    pub fn with_name(base_name: String) -> File {
+    pub fn with_name(base_name: String) -> Self {
         let inner = InnerFile::with_name(&base_name);
         File {
             inner_name: Some(inner),
@@ -43,12 +70,12 @@ impl File {
     }
 
     #[napi]
-    pub fn format(&mut self, format: String) -> napi::Result<&Self> {
-        let file_format = parse_format(&format)?;
+    pub fn format(&mut self, format: Either<FileFormat, String>) -> napi::Result<&Self> {
+        let fmt = parse_file_format(format)?;
         if let Some(inner) = self.inner_name.take() {
-            self.inner_name = Some(inner.format(file_format));
+            self.inner_name = Some(inner.format(fmt));
         } else if let Some(inner) = self.inner_str.take() {
-            self.inner_str = Some(inner.format(file_format));
+            self.inner_str = Some(inner.format(fmt));
         }
         Ok(self)
     }
@@ -61,20 +88,6 @@ impl File {
             self.inner_str = Some(inner.required(required));
         }
         self
-    }
-}
-
-fn parse_format(format: &str) -> napi::Result<FileFormat> {
-    match format.to_lowercase().as_str() {
-        "json" => Ok(FileFormat::Json),
-        "toml" => Ok(FileFormat::Toml),
-        "yaml" | "yml" => Ok(FileFormat::Yaml),
-        "ini" => Ok(FileFormat::Ini),
-        "ron" => Ok(FileFormat::Ron),
-        other => Err(napi::Error::from_reason(format!(
-            "Unsupported file format: {}",
-            other
-        ))),
     }
 }
 

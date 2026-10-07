@@ -5,12 +5,12 @@ TypeScript/JavaScript bindings for Rust configuration management via NAPI-RS.
 ## Usage
 
 ```typescript
-import { Config, File } from "@alloy-ts/config";
+import { Config, FileFormat } from "@alloy-ts/config";
 
-// Build configuration using builder pattern
+// Build configuration using builder pattern with Config.File
 const config = Config.builder()
   .setDefault("default", "1")
-  .addSource(File.new("config/settings", "json"))
+  .addSource(new Config.File("config/settings", Config.File.Format.Json))
   .setOverride("override", "1")
   .build();
 
@@ -19,27 +19,59 @@ const defaultValue = config.getString("default");
 const overrideValue = config.getString("override");
 ```
 
-## Development
+### File Sources
 
-- Configure local hooks:
+Configuration files can be loaded using `new Config.File(...)` or `Config.File.fromStr(...)`:
+
+```typescript
+import { Config, File, FileFormat } from "@alloy-ts/config";
+
+// Load from file path with format enum or format string
+const fileSource = new File("config/settings", FileFormat.Json);
+
+// Load from string content
+const strSource = File.fromStr('{"port": 8080}', FileFormat.Json);
+
+// Extension-less discovery
+const autoSource = File.withName("config/settings");
+autoSource.required(false); // Make missing file optional
+
+const config = Config.builder()
+  .addSource(fileSource)
+  .addSource(strSource)
+  .addSource(autoSource)
+  .build();
+```
+
+### Examples
+
+Check out the `examples` directory for runnable examples:
+
+- `examples/config-file.ts`: Demonstrates using `Config.File` with builder pattern.
+- `examples/load-npm-package-json.ts`: Demonstrates loading `package.json`, nested property access, environment variable overrides, and optional file sources.
+
+Run examples using `@oxc-node/core`:
 
 ```bash
-npm run prepare
+node --import @oxc-node/core examples/config-file.ts
+node --import @oxc-node/core examples/load-npm-package-json.ts
 ```
+
+## Development
 
 - Install dependencies:
 
 ```bash
-vp install
+npm install
 ```
 
-- Run the unit tests:
+- Run unit tests:
 
 ```bash
-vp test
+npm test
 ```
 
-- Build the library:
+- Build native bindings:
 
 ```bash
 npm run build
