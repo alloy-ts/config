@@ -7,10 +7,14 @@ pub(crate) mod config;
 #[path = "file.rs"]
 pub(crate) mod file;
 
+#[path = "schema.rs"]
+pub(crate) mod schema;
+
 #[path = "value.rs"]
 pub(crate) mod value;
 
 pub use builder::ConfigBuilder;
 pub use config::Config;
 pub use file::{File, FileFormat};
+pub use schema::ConfigSchema;
 pub use value::Value;
