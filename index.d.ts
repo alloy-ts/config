@@ -7,7 +7,7 @@
  * flavor napi-rs can build is listed, because `NAPI_RS_NATIVE_LIBRARY_PATH`
  * can point the loader at a WASI artifact this package does not build itself.
  */
-export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
+export declare const __napiBindingTarget: "native" | "wasm32-wasi" | "wasm32-wasip1";
 
 /**
  * A prioritized configuration repository.
@@ -16,85 +16,85 @@ export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-was
  * them according to the source's priority.
  */
 export declare class Config {
-  static builder(): ConfigBuilder
-  get cache(): any
-  getString(key: string): string
-  getInt(key: string): number
-  getFloat(key: string): number
-  getBool(key: string): boolean
-  getTable(key: string): any
-  getArray(key: string): any
-  get(key: string): any
-  tryDeserialize(): any
-  static tryFrom(from: any): Config
+  static builder(): ConfigBuilder;
+  get cache(): any;
+  getString(key: string): string;
+  getInt(key: string): number;
+  getFloat(key: string): number;
+  getBool(key: string): boolean;
+  getTable(key: string): any;
+  getArray(key: string): any;
+  get(key: string): any;
+  tryDeserialize(): any;
+  static tryFrom(from: any): Config;
 }
 
 /** A configuration builder. */
 export declare class ConfigBuilder {
-  constructor()
-  setDefault(key: string, value: any): this
-  setOverride(key: string, value: any): this
-  setOverrideOption(key: string, value?: any | undefined | null): this
-  addSource(source: File | Environment): this
-  build(): Config
-  buildCloned(): Config
+  constructor();
+  setDefault(key: string, value: any): this;
+  setOverride(key: string, value: any): this;
+  setOverrideOption(key: string, value?: any | undefined | null): this;
+  addSource(source: File | Environment): this;
+  build(): Config;
+  buildCloned(): Config;
 }
 
 /** An environment-variable configuration source. */
 export declare class Environment {
-  constructor()
-  static withPrefix(prefix: string): Environment
-  static defaultEnv(): Environment
-  prefix(prefix: string): this
-  separator(separator: string): this
-  ignoreEmpty(ignoreEmpty: boolean): this
-  keepPrefix(keepPrefix: boolean): this
+  constructor();
+  static withPrefix(prefix: string): Environment;
+  static defaultEnv(): Environment;
+  prefix(prefix: string): this;
+  separator(separator: string): this;
+  ignoreEmpty(ignoreEmpty: boolean): this;
+  keepPrefix(keepPrefix: boolean): this;
 }
 
 export declare class File {
-  static withName(name: string): File
-  static fromStr(text: string, format: FileFormat | string): File
-  static new(name: string, format?: FileFormat | string | undefined | null): File
-  constructor(name: string, format?: FileFormat | string | undefined | null)
-  format(format: FileFormat | string): this
-  required(required: boolean): this
+  static withName(name: string): File;
+  static fromStr(text: string, format: FileFormat | string): File;
+  static new(name: string, format?: FileFormat | string | undefined | null): File;
+  constructor(name: string, format?: FileFormat | string | undefined | null);
+  format(format: FileFormat | string): this;
+  required(required: boolean): this;
 }
 
 /** A configuration value. */
 export declare class Value {
   /** Create a new value instance that will remember its source uri. */
-  static new(value: any, origin?: string): Value
+  static new(value: any, origin?: string): Value;
   /** Get the description of the original location of the value. */
-  origin(): string | null
+  origin(): string | null;
   /** Attempt to deserialize this value into the requested type. */
-  tryDeserialize(): Value
+  tryDeserialize(): Value;
   /** Returns self as a bool, if possible. */
-  intoBool(): boolean
+  intoBool(): boolean;
   /** Returns self into an i64, if possible. */
-  intoInt(): number
+  intoInt(): number;
   /** Returns self into an i128, if possible. */
-  intoInt128(): number
+  intoInt128(): number;
   /** Returns self into an u64, if possible. */
-  intoUint(): number
+  intoUint(): number;
   /** Returns self into an u128, if possible. */
-  intoUint128(): number
+  intoUint128(): number;
   /** Returns self into a f64, if possible. */
-  intoFloat(): number
+  intoFloat(): number;
   /** Returns self into a string, if possible. */
-  intoString(): string
+  intoString(): string;
   /** Returns self into an array, if possible. */
-  intoArray(): Array<Value>
+  intoArray(): Array<Value>;
   /** If the Value is a Table, returns the associated HashMap. */
-  intoTable(): Record<string, Value>
+  intoTable(): Record<string, Value>;
   /** Serialize to JSON */
-  toJSON(): Value
+  toJSON(): Value;
 }
 
 export declare const enum FileFormat {
-  Ini = 'Ini',
-  Json = 'Json',
-  Json5 = 'Json5',
-  Ron = 'Ron',
-  Toml = 'Toml',
-  Yaml = 'Yaml',
+  Ini = "Ini",
+  Json = "Json",
+  Json5 = "Json5",
+  Ron = "Ron",
+  Toml = "Toml",
+  Yaml = "Yaml",
 }
