@@ -134,6 +134,7 @@ console.log(plainObject); // { app: "alloy-service", version: 1 }
 ```bash
 node --import @oxc-node/core examples/config-builder.ts
 node --import @oxc-node/core examples/config-file.ts
+node --import @oxc-node/core examples/load-npm-package-json.ts
 ```
 
 ## Development
