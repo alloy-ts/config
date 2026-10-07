@@ -18,12 +18,12 @@ export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-was
 export declare class Config {
   /** Creates new [`ConfigBuilder`] instance */
   static builder(): ConfigBuilder
-  get cache(): Record<string, any>
+  get cache(): any
   getString(key: string): string
   getInt(key: string): number
   getFloat(key: string): number
   getBool(key: string): boolean
-  getTable(key: string): Record<string, any>
+  getTable(key: string): any
   getArray(key: string): Array<any>
   get(key: string): any
   tryDeserialize(): any
@@ -61,10 +61,10 @@ export declare class File {
 }
 
 export declare class Value {
-  static new(value: any, origin?: string | null): Value
-  constructor(value?: any, origin?: string | null)
+  static new(value: Value, origin?: string | undefined | null): Value
+  constructor(value?: Value | undefined | null, origin?: string | undefined | null)
   origin(): string | null
-  tryDeserialize(): any
+  tryDeserialize(): Value
   intoBool(): boolean
   intoInt(): number
   intoInt128(): number

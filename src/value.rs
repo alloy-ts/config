@@ -36,7 +36,7 @@ pub struct Value {
 
 #[napi]
 impl Value {
-    #[napi(ts_args_type = "value: any, origin?: string | null")]
+    #[napi]
     pub fn new(value: serde_json::Value, origin: Option<String>) -> napi::Result<Self> {
         let config_val: config::Value = serde_json::from_value(value)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
@@ -45,7 +45,7 @@ impl Value {
         })
     }
 
-    #[napi(constructor, ts_args_type = "value?: any, origin?: string | null")]
+    #[napi(constructor)]
     pub fn js_constructor(value: Option<serde_json::Value>, origin: Option<String>) -> napi::Result<Self> {
         if let Some(val) = value {
             Self::new(val, origin)
@@ -61,7 +61,7 @@ impl Value {
         self.inner.origin().map(|s| s.to_string())
     }
 
-    #[napi(ts_return_type = "any")]
+    #[napi]
     pub fn try_deserialize(&self) -> napi::Result<serde_json::Value> {
         Ok(config_value_to_json(&self.inner))
     }

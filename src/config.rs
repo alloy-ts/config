@@ -24,7 +24,7 @@ impl Config {
         ConfigBuilder::default()
     }
 
-    #[napi(getter, ts_return_type = "Record<string, any>")]
+    #[napi(getter)]
     pub fn cache(&self) -> napi::Result<serde_json::Value> {
         Ok(config_value_to_json(&self.inner.cache))
     }
@@ -57,7 +57,7 @@ impl Config {
             .map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
-    #[napi(ts_return_type = "Record<string, any>")]
+    #[napi]
     pub fn get_table(&self, key: String) -> napi::Result<serde_json::Value> {
         let table = self
             .inner
@@ -67,7 +67,7 @@ impl Config {
         Ok(config_value_to_json(&val))
     }
 
-    #[napi(ts_return_type = "Array<any>")]
+    #[napi]
     pub fn get_array(&self, key: String) -> napi::Result<Vec<serde_json::Value>> {
         let array = self
             .inner
@@ -76,7 +76,7 @@ impl Config {
         Ok(array.iter().map(config_value_to_json).collect())
     }
 
-    #[napi(ts_return_type = "any")]
+    #[napi]
     pub fn get(&self, key: String) -> napi::Result<serde_json::Value> {
         let val = self
             .inner
@@ -85,12 +85,12 @@ impl Config {
         Ok(config_value_to_json(&val))
     }
 
-    #[napi(ts_return_type = "any")]
+    #[napi]
     pub fn try_deserialize(&self) -> napi::Result<serde_json::Value> {
         Ok(config_value_to_json(&self.inner.cache))
     }
 
-    #[napi(ts_args_type = "from: any")]
+    #[napi]
     pub fn try_from(from: serde_json::Value) -> napi::Result<Config> {
         let inner = InnerConfig::try_from(&from)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
