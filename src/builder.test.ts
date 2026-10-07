@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "vite-plus/test";
-import { Config, ConfigBuilder, File } from "../dist/index.js";
+import { Config, ConfigBuilder, ConfigSchema, File } from "../dist/index.js";
 
 describe("ConfigBuilder and NAPI bindings (builder.rs)", () => {
   it("supports Config.builder() chaining with setDefault, addSource, setOverride, and build", () => {
@@ -78,5 +78,13 @@ describe("ConfigBuilder and NAPI bindings (builder.rs)", () => {
 
     assert.strictEqual(config1.getString("shared"), "yes");
     assert.strictEqual(config2.getString("shared"), "no");
+  });
+
+  it("supports setSchema with ConfigSchema", () => {
+    const builder = new ConfigBuilder();
+    const schema = ConfigSchema.fromJson({ type: "object" });
+    builder.setSchema(schema);
+    const config = builder.build();
+    assert.ok(config);
   });
 });

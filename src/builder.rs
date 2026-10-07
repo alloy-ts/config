@@ -1,9 +1,10 @@
 use config::{builder::DefaultState as InnerDefaultState, ConfigBuilder as InnerConfigBuilder};
-use napi::bindgen_prelude::Either3;
+use napi::bindgen_prelude::{Either, Either3, Object};
 use napi_derive::napi;
 
 use crate::config::Config;
 use crate::file::{File, FileFormat};
+use crate::schema::ConfigSchema;
 
 #[derive(Debug)]
 struct BoxSource(Box<dyn config::Source + Send + Sync>);
@@ -94,6 +95,7 @@ impl Environment {
 #[derive(Debug, Clone, Default)]
 pub struct ConfigBuilder {
     inner: InnerConfigBuilder<InnerDefaultState>,
+    pub(crate) schema: Option<ConfigSchema>,
 }
 
 #[napi]
@@ -101,6 +103,21 @@ impl ConfigBuilder {
     #[napi(constructor)]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[napi(ts_args_type = "schema: ConfigSchema | any")]
+    pub fn set_schema(
+        &mut self,
+        schema: Either<&ConfigSchema, Object>,
+    ) -> napi::Result<&Self> {
+        let schema_obj = match schema {
+            Either::A(s) => s.clone(),
+            Either::B(_obj) => ConfigSchema {
+                schema: serde_json::Value::Null,
+            },
+        };
+        self.schema = Some(schema_obj);
+        Ok(self)
     }
 
     #[napi]

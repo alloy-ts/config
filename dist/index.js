@@ -716,9 +716,10 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { Config, ConfigBuilder, Environment, File, Value, FileFormat } = nativeBinding
+const { Config, ConfigBuilder, ConfigSchema, Environment, File, Value, FileFormat } = nativeBinding
 export { Config }
 export { ConfigBuilder }
+export { ConfigSchema }
 export { Environment }
 export { File }
 export { Value }

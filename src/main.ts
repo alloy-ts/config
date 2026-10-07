@@ -10,6 +10,7 @@ export const File: typeof Types.File = native.File;
 export const Environment: typeof Types.Environment = native.Environment;
 export const FileFormat: typeof Types.FileFormat = native.FileFormat;
 export const Value: typeof Types.Value = native.Value;
+export const ConfigSchema: typeof Types.ConfigSchema = native.ConfigSchema;
 
 export type Config = Types.Config;
 export type ConfigBuilder = Types.ConfigBuilder;
@@ -17,3 +18,4 @@ export type File = Types.File;
 export type Environment = Types.Environment;
 export type FileFormat = Types.FileFormat;
 export type Value = Types.Value;
+export type ConfigSchema = Types.ConfigSchema;

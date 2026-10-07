@@ -32,6 +32,7 @@ export declare class Config {
 
 export declare class ConfigBuilder {
   constructor()
+  setSchema(schema: ConfigSchema | any): this
   setDefault(key: string, value: any): this
   setOverride(key: string, value: any): this
   setOverrideOption(key: string, value?: any | undefined | null): this
@@ -39,6 +40,13 @@ export declare class ConfigBuilder {
   addFile(filePath: string, format?: FileFormat | undefined | null): this
   build(): Config
   buildCloned(): Config
+}
+
+/** Schema for configuration. */
+export declare class ConfigSchema {
+  constructor(schema?: JsonValue | undefined | null)
+  static fromJson(schema: JsonValue): ConfigSchema
+  get raw(): JsonValue
 }
 
 export declare class Environment {
