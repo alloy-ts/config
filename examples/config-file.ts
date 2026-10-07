@@ -1,34 +1,71 @@
 import console from "node:console";
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
-import { Config } from "../src/main.ts";
+import { ConfigBuilder, File, FileFormat } from "../src/main.ts";
 
-if (!existsSync("config")) {
-  mkdirSync("config", { recursive: true });
-}
+// Demonstration of supported FileFormat types using File.fromStr
 
-writeFileSync(
-  "config/settings.json",
-  JSON.stringify({
-    app_name: "Alloy Application",
-    port: 8080,
-    debug: false,
-  }),
+// 1. JSON
+const jsonSource = File.fromStr(JSON.stringify({ format: "JSON", port: 8080 }), FileFormat.Json);
+
+// 2. TOML
+const tomlSource = File.fromStr(
+  `
+format = "TOML"
+port = 8081
+`,
+  FileFormat.Toml,
 );
 
-try {
-  const config = Config.builder()
-    .setDefault("default", "1")
-    .addSource(new Config.File("config/settings", Config.File.Format.Json))
-    .setOverride("override", "1")
-    .build();
+// 3. YAML
+const yamlSource = File.fromStr(
+  `
+format: YAML
+port: 8082
+`,
+  FileFormat.Yaml,
+);
 
-  console.log("Config loaded successfully!");
-  console.log("default:", config.getString("default"));
-  console.log("app_name:", config.getString("app_name"));
-  console.log("port:", config.getInt("port"));
-  console.log("override:", config.getString("override"));
-} finally {
-  if (existsSync("config/settings.json")) {
-    unlinkSync("config/settings.json");
-  }
+// 4. INI
+const iniSource = File.fromStr(
+  `
+format = INI
+port = 8083
+`,
+  FileFormat.Ini,
+);
+
+// 5. RON
+const ronSource = File.fromStr(
+  `
+(
+    format: "RON",
+    port: 8084,
+)
+`,
+  FileFormat.Ron,
+);
+
+// 6. JSON5
+const json5Source = File.fromStr(
+  `
+{
+  // JSON5 comments supported
+  format: 'JSON5',
+  port: 8085,
+}
+`,
+  FileFormat.Json5,
+);
+
+const formats = [
+  { name: "JSON", source: jsonSource },
+  { name: "TOML", source: tomlSource },
+  { name: "YAML", source: yamlSource },
+  { name: "INI", source: iniSource },
+  { name: "RON", source: ronSource },
+  { name: "JSON5", source: json5Source },
+];
+
+for (const { name, source } of formats) {
+  const config = new ConfigBuilder().addSource(source).build();
+  console.log(`[${name}] format: ${config.getString("format")}, port: ${config.getInt("port")}`);
 }
