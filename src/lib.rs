@@ -12,5 +12,5 @@ pub(crate) mod value;
 
 pub use builder::ConfigBuilder;
 pub use config::Config;
-pub use file::File;
+pub use file::{Environment, File, FileFormat};
 pub use value::Value;
