@@ -1,6 +1,7 @@
 import { expect, test } from "vite-plus/test";
-import { main } from "./main.ts";
+import { Config } from "./main.ts";
 
-test("main returns Hello, world!", () => {
-  expect(main()).toBe("Hello, world!");
+test("main exports Config", () => {
+  expect(Config).toBeDefined();
+  expect(typeof Config.builder).toBe("function");
 });
