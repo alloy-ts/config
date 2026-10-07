@@ -27,13 +27,13 @@ async function run() {
   const distFiles = fs.readdirSync("./dist");
   for (const file of distFiles) {
     if (file.endsWith(".d.ts")) {
-      const filePath = path.join("./dist", file);
+      const filePath = path.resolve("./dist", file);
       let content = fs.readFileSync(filePath, "utf-8");
-      content = content.replace(/\bconst enum\b/g, "enum");
+      content = content.replace(/export declare const enum/g, "export declare enum");
       fs.writeFileSync(filePath, content, "utf-8");
-    }
-    if (file.endsWith(".js") || file.endsWith(".d.ts") || file.endsWith(".node")) {
-      fs.copyFileSync(path.join("./dist", file), path.join(".", file));
+      fs.writeFileSync(path.resolve(".", file), content, "utf-8");
+    } else if (file.endsWith(".js") || file.endsWith(".node")) {
+      fs.copyFileSync(path.resolve("./dist", file), path.resolve(".", file));
     }
   }
 }
