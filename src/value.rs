@@ -2,6 +2,7 @@ use config::{ConfigError, Value as InnerValue};
 use napi_derive::napi;
 use serde::de::{Deserializer, Visitor};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 
 /// A configuration value.
@@ -13,10 +14,11 @@ pub struct Value {
 
 #[napi]
 impl Value {
-    #[napi(factory)]
-    pub fn new(value: serde_json::Value) -> napi::Result<Value> {
-        let inner: InnerValue = serde_json::from_value(value)
+    #[napi(factory, ts_args_type = "value: any, origin?: string")]
+    pub fn new(value: serde_json::Value, origin: Option<String>) -> napi::Result<Value> {
+        let val: InnerValue = serde_json::from_value(value)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        let inner = InnerValue::new(origin.as_ref(), val.kind);
         Ok(Value { inner })
     }
 
@@ -50,12 +52,12 @@ impl Value {
     }
 
     #[napi]
-    pub fn into_int128(&self) -> napi::Result<String> {
+    pub fn into_int128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_int128()
-            .map(|i| i.to_string())
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("i128 overflow")))
     }
 
     #[napi]
@@ -63,17 +65,17 @@ impl Value {
         self.inner
             .clone()
             .into_uint()
-            .map(|u| u as i64)
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("u64 overflow")))
     }
 
     #[napi]
-    pub fn into_uint128(&self) -> napi::Result<String> {
+    pub fn into_uint128(&self) -> napi::Result<i64> {
         self.inner
             .clone()
             .into_uint128()
-            .map(|u| u.to_string())
             .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("u128 overflow")))
     }
 
     #[napi]
@@ -103,20 +105,17 @@ impl Value {
     }
 
     #[napi]
-    pub fn into_table(&self) -> napi::Result<serde_json::Value> {
+    pub fn into_table(&self) -> napi::Result<HashMap<String, Value>> {
         let table = self
             .inner
             .clone()
             .into_table()
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        serde_json::Value::deserialize(InnerValue::new(None, table))
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
-    }
-}
-
-impl Value {
-    pub(crate) fn from_inner(inner: InnerValue) -> Self {
-        Self { inner }
+        let mut map = HashMap::new();
+        for (k, v) in table {
+            map.insert(k, Value { inner: v });
+        }
+        Ok(map)
     }
 }
 
@@ -139,7 +138,7 @@ impl From<Value> for InnerValue {
 }
 
 impl<'de> Deserialize<'de> for Value {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -148,7 +147,7 @@ impl<'de> Deserialize<'de> for Value {
 }
 
 impl Serialize for Value {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -161,79 +160,79 @@ impl Serialize for Value {
 impl<'de> Deserializer<'de> for Value {
     type Error = ConfigError;
 
-    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_any(visitor)
     }
 
-    fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_bool(visitor)
     }
 
-    fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_i8(visitor)
     }
 
-    fn deserialize_i16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_i16<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_i16(visitor)
     }
 
-    fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_i32(visitor)
     }
 
-    fn deserialize_i64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_i64<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_i64(visitor)
     }
 
-    fn deserialize_u8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_u8<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_u8(visitor)
     }
 
-    fn deserialize_u16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_u16<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_u16(visitor)
     }
 
-    fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_u32(visitor)
     }
 
-    fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_u64(visitor)
     }
 
-    fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_f32(visitor)
     }
 
-    fn deserialize_f64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_f64<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_f64(visitor)
     }
 
-    fn deserialize_char<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_char<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_char(visitor)
     }
 
-    fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_str(visitor)
     }
 
-    fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_string(visitor)
     }
 
-    fn deserialize_bytes<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_bytes<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_bytes(visitor)
     }
 
-    fn deserialize_byte_buf<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_byte_buf<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_byte_buf(visitor)
     }
 
-    fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_option(visitor)
     }
 
-    fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_unit(visitor)
     }
 
@@ -241,7 +240,7 @@ impl<'de> Deserializer<'de> for Value {
         self,
         name: &'static str,
         visitor: V,
-    ) -> Result<V::Value, ConfigError> {
+    ) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_unit_struct(name, visitor)
     }
 
@@ -249,11 +248,11 @@ impl<'de> Deserializer<'de> for Value {
         self,
         name: &'static str,
         visitor: V,
-    ) -> Result<V::Value, ConfigError> {
+    ) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_newtype_struct(name, visitor)
     }
 
-    fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_seq(visitor)
     }
 
@@ -261,7 +260,7 @@ impl<'de> Deserializer<'de> for Value {
         self,
         len: usize,
         visitor: V,
-    ) -> Result<V::Value, ConfigError> {
+    ) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_tuple(len, visitor)
     }
 
@@ -270,11 +269,11 @@ impl<'de> Deserializer<'de> for Value {
         name: &'static str,
         len: usize,
         visitor: V,
-    ) -> Result<V::Value, ConfigError> {
+    ) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_tuple_struct(name, len, visitor)
     }
 
-    fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_map(visitor)
     }
 
@@ -283,7 +282,7 @@ impl<'de> Deserializer<'de> for Value {
         name: &'static str,
         fields: &'static [&'static str],
         visitor: V,
-    ) -> Result<V::Value, ConfigError> {
+    ) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_struct(name, fields, visitor)
     }
 
@@ -292,23 +291,23 @@ impl<'de> Deserializer<'de> for Value {
         name: &'static str,
         variants: &'static [&'static str],
         visitor: V,
-    ) -> Result<V::Value, ConfigError> {
+    ) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_enum(name, variants, visitor)
     }
 
-    fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_identifier(visitor)
     }
 
-    fn deserialize_ignored_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, ConfigError> {
+    fn deserialize_ignored_any<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, ConfigError> {
         self.inner.deserialize_ignored_any(visitor)
     }
 
-    fn deserialize_i128<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+    fn deserialize_i128<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, Self::Error> {
         self.inner.deserialize_i128(visitor)
     }
 
-    fn deserialize_u128<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+    fn deserialize_u128<V: Visitor<'de>>(self, visitor: V) -> std::result::Result<V::Value, Self::Error> {
         self.inner.deserialize_u128(visitor)
     }
 

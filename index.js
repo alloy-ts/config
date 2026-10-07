@@ -903,6 +903,43 @@ if (!nativeBinding) {
 }
 
 const { Config, ConfigBuilder, Environment, File, Value, FileFormat } = nativeBinding;
+
+Config.File = File;
+Config.File.Format = FileFormat;
+
+const originalAddSource = ConfigBuilder.prototype.addSource;
+ConfigBuilder.prototype.addSource = function (source) {
+  if (!source) return this;
+  const name = source.constructor?.name;
+  if (name === "File" || source instanceof File) {
+    return this.addFileSource(source);
+  }
+  if (name === "Environment" || source instanceof Environment) {
+    return this.addEnvSource(source);
+  }
+  if (name === "Config" || source instanceof Config) {
+    return this.addConfigSource(source);
+  }
+  return originalAddSource.call(this, source);
+};
+
+// Create prototype aliases for camelCase and snake_case compatibility across all classes
+for (const cls of [Config, File, Value, Environment, ConfigBuilder]) {
+  if (!cls || !cls.prototype) continue;
+  for (const key of Object.getOwnPropertyNames(cls.prototype)) {
+    // convert camelCase to snake_case
+    const snake = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    if (snake !== key && !(snake in cls.prototype)) {
+      cls.prototype[snake] = cls.prototype[key];
+    }
+    // convert snake_case to camelCase
+    const camel = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    if (camel !== key && !(camel in cls.prototype)) {
+      cls.prototype[camel] = cls.prototype[key];
+    }
+  }
+}
+
 export { Config };
 export { ConfigBuilder };
 export { Environment };

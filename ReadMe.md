@@ -1,22 +1,51 @@
 # @alloy-ts/config
 
-TypeScript/JavaScript bindings for Rust configuration management via NAPI-RS.
+Hierarchical and layered configuration management for TypeScript/JavaScript applications, powered by Rust via NAPI-RS.
 
 ## Usage
 
 ```typescript
-import { Config, File } from "@alloy-ts/config";
+import { Config } from "@alloy-ts/config";
 
 // Build configuration using builder pattern
 const config = Config.builder()
   .setDefault("default", "1")
-  .addSource(File.new("config/settings", "json"))
+  .addSource(new Config.File("config/settings", Config.File.Format.Json))
   .setOverride("override", "1")
   .build();
 
 // Retrieve configuration values
 const defaultValue = config.getString("default");
 const overrideValue = config.getString("override");
+```
+
+### Reading from String or File Sources
+
+```typescript
+import { Config, FileFormat } from "@alloy-ts/config";
+
+// Load from a string in JSON format
+const fileSource = Config.File.from_str(
+  JSON.stringify({ host: "localhost", port: 8080 }),
+  Config.File.Format.Json,
+);
+
+const config = Config.builder()
+  .setDefault("port", 3000)
+  .addSource(fileSource)
+  .setOverride("env", "production")
+  .build();
+
+console.log(config.getString("host")); // "localhost"
+console.log(config.getInt("port"));   // 8080
+```
+
+## Running Examples
+
+Execute example scripts with `@oxc-node/core`:
+
+```bash
+node --import @oxc-node/core/register examples/config-file.ts
 ```
 
 ## Development
