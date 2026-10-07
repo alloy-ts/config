@@ -144,6 +144,20 @@ impl ConfigBuilder {
     }
 
     #[napi]
+    pub fn set_schema(&mut self, schema: serde_json::Value) -> napi::Result<&Self> {
+        if let Some(obj) = schema.as_object() {
+            if let Some(shape) = obj.get("shape").and_then(|s| s.as_object()) {
+                for (key, val) in shape {
+                    if let Some(def) = val.get("default") {
+                        let _ = self.set_default(key.clone(), def.clone());
+                    }
+                }
+            }
+        }
+        Ok(self)
+    }
+
+    #[napi]
     pub fn set_default(&mut self, key: String, value: serde_json::Value) -> napi::Result<&Self> {
         let val: ConfigValue = serde_json::from_value(value)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;

@@ -79,4 +79,17 @@ describe("ConfigBuilder and NAPI bindings (builder.rs)", () => {
     assert.strictEqual(config1.getString("shared"), "yes");
     assert.strictEqual(config2.getString("shared"), "no");
   });
+
+  it("supports setSchema for schema instances", () => {
+    const schema = {
+      shape: {
+        port: { default: 8080 },
+        host: { default: "localhost" },
+      },
+    };
+
+    const config = new ConfigBuilder().setSchema(schema).build();
+    assert.strictEqual(config.getInt("port"), 8080);
+    assert.strictEqual(config.getString("host"), "localhost");
+  });
 });
