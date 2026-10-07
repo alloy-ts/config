@@ -1,5 +1,4 @@
-use config::File as InnerFile;
-use config::FileFormat as InnerFileFormat;
+use napi::Either;
 use napi_derive::napi;
 
 use crate::BoxedSource;
@@ -15,16 +14,31 @@ pub enum FileFormat {
     Yaml,
 }
 
-impl From<FileFormat> for config::FileFormat {
+impl From<FileFormat> for ::config::FileFormat {
     fn from(f: FileFormat) -> Self {
         match f {
-            FileFormat::Ini => config::FileFormat::Ini,
-            FileFormat::Json => config::FileFormat::Json,
-            FileFormat::Json5 => config::FileFormat::Json5,
-            FileFormat::Ron => config::FileFormat::Ron,
-            FileFormat::Toml => config::FileFormat::Toml,
-            FileFormat::Yaml => config::FileFormat::Yaml,
+            FileFormat::Ini => ::config::FileFormat::Ini,
+            FileFormat::Json => ::config::FileFormat::Json,
+            FileFormat::Json5 => ::config::FileFormat::Json5,
+            FileFormat::Ron => ::config::FileFormat::Ron,
+            FileFormat::Toml => ::config::FileFormat::Toml,
+            FileFormat::Yaml => ::config::FileFormat::Yaml,
         }
+    }
+}
+
+pub(crate) fn parse_file_format(fmt: Either<FileFormat, String>) -> napi::Result<FileFormat> {
+    match fmt {
+        Either::A(f) => Ok(f),
+        Either::B(s) => match s.to_lowercase().as_str() {
+            "ini" => Ok(FileFormat::Ini),
+            "json" => Ok(FileFormat::Json),
+            "json5" => Ok(FileFormat::Json5),
+            "ron" => Ok(FileFormat::Ron),
+            "toml" => Ok(FileFormat::Toml),
+            "yaml" => Ok(FileFormat::Yaml),
+            _ => Err(napi::Error::from_reason(format!("Unknown file format: {s}"))),
+        },
     }
 }
 
@@ -50,47 +64,55 @@ impl File {
     }
 
     #[napi(factory)]
-    pub fn from_str(text: String, format: FileFormat) -> Self {
-        Self {
+    pub fn from_str(text: String, format: Either<FileFormat, String>) -> napi::Result<Self> {
+        let fmt = parse_file_format(format)?;
+        Ok(Self {
             name: None,
             text: Some(text),
-            format: Some(format),
+            format: Some(fmt),
             required: true,
-        }
+        })
     }
 
     #[napi(constructor)]
-    pub fn new(name: String, format: Option<FileFormat>) -> Self {
-        Self {
+    pub fn create(name: String, format: Option<Either<FileFormat, String>>) -> napi::Result<Self> {
+        let fmt = match format {
+            Some(f) => Some(parse_file_format(f)?),
+            None => None,
+        };
+        Ok(Self {
             name: Some(name),
             text: None,
-            format,
+            format: fmt,
             required: true,
-        }
+        })
+    }
+
+    #[napi(factory)]
+    pub fn new(name: String, format: Option<Either<FileFormat, String>>) -> napi::Result<Self> {
+        Self::create(name, format)
     }
 
     #[napi]
-    pub fn format(&mut self, format: FileFormat) -> Self {
-        let mut c = self.clone();
-        c.format = Some(format);
-        c
+    pub fn format(&mut self, format: Either<FileFormat, String>) -> napi::Result<&Self> {
+        let fmt = parse_file_format(format)?;
+        self.format = Some(fmt);
+        Ok(self)
     }
 
     #[napi]
-    pub fn required(&mut self, required: bool) -> Self {
-        let mut c = self.clone();
-        c.required = required;
-        c
+    pub fn required(&mut self, required: bool) -> &Self {
+        self.required = required;
+        self
     }
 
-    /// Build a `config::File` source from this wrapper.
     pub(crate) fn into_config_source(&self) -> napi::Result<BoxedSource> {
         match (&self.name, &self.text) {
             (Some(name), _) => {
-                let base = InnerFile::with_name(name).required(self.required);
+                let base = ::config::File::with_name(name).required(self.required);
                 let source = match self.format {
                     Some(fmt) => {
-                        BoxedSource(Box::new(base.format(InnerFileFormat::from(fmt))))
+                        BoxedSource(Box::new(base.format(::config::FileFormat::from(fmt))))
                     }
                     None => BoxedSource(Box::new(base)),
                 };
@@ -100,7 +122,7 @@ impl File {
                 let fmt = self
                     .format
                     .ok_or_else(|| napi::Error::from_reason("format is required for string content"))?;
-                let file = InnerFile::from_str(text, InnerFileFormat::from(fmt)).required(self.required);
+                let file = ::config::File::from_str(text, ::config::FileFormat::from(fmt)).required(self.required);
                 Ok(BoxedSource(Box::new(file)))
             }
             (None, None) => Err(napi::Error::from_reason(

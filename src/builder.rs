@@ -1,20 +1,15 @@
-use config::builder::DefaultState as InnerDefaultState;
-use config::ConfigBuilder as InnerConfigBuilder;
 use napi::Either;
 use napi_derive::napi;
 
 use crate::config::Config;
 use crate::file::File;
-use crate::value::to_napi_err;
+use crate::value::{json_to_config_value, to_napi_err};
 use crate::BoxedSource;
-use crate::Environment;
-use crate::json_to_config_value;
 
-/// A configuration builder.
 #[napi]
 #[derive(Debug, Clone, Default)]
 pub struct ConfigBuilder {
-    inner: InnerConfigBuilder<InnerDefaultState>,
+    pub(crate) inner: ::config::ConfigBuilder<::config::builder::DefaultState>,
 }
 
 #[napi]
@@ -64,12 +59,16 @@ impl ConfigBuilder {
     }
 
     #[napi]
-    pub fn add_source(&mut self, source: Either<File, Environment>) -> napi::Result<&Self> {
+    pub fn add_source(
+        &mut self,
+        source: Either<&File, Either<&Environment, &Config>>,
+    ) -> napi::Result<&Self> {
         let boxed = match source {
             Either::A(file) => file.into_config_source()?,
-            Either::B(env) => env.into_config_source(),
+            Either::B(Either::A(env)) => env.into_config_source(),
+            Either::B(Either::B(cfg)) => BoxedSource(Box::new(cfg.inner.clone())),
         };
-        self.inner = self.inner.clone().add_source(boxed).map_err(to_napi_err)?;
+        self.inner = self.inner.clone().add_source(boxed);
         Ok(self)
     }
 
@@ -90,26 +89,22 @@ impl ConfigBuilder {
 #[napi]
 #[derive(Clone, Debug, Default)]
 pub struct Environment {
-    pub(crate) prefix: Option<String>,
-    pub(crate) separator: Option<String>,
-    pub(crate) ignore_empty: bool,
-    pub(crate) keep_prefix: bool,
+    pub(crate) inner: ::config::Environment,
 }
 
 #[napi]
 impl Environment {
     #[napi(constructor)]
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            inner: ::config::Environment::default(),
+        }
     }
 
     #[napi(factory)]
     pub fn with_prefix(prefix: String) -> Self {
         Self {
-            prefix: Some(prefix),
-            separator: None,
-            ignore_empty: false,
-            keep_prefix: false,
+            inner: ::config::Environment::with_prefix(&prefix),
         }
     }
 
@@ -120,38 +115,29 @@ impl Environment {
 
     #[napi]
     pub fn prefix(&mut self, prefix: String) -> &Self {
-        self.prefix = Some(prefix);
+        self.inner = self.inner.clone().prefix(&prefix);
         self
     }
 
     #[napi]
     pub fn separator(&mut self, separator: String) -> &Self {
-        self.separator = Some(separator);
+        self.inner = self.inner.clone().separator(&separator);
         self
     }
 
     #[napi]
     pub fn ignore_empty(&mut self, ignore_empty: bool) -> &Self {
-        self.ignore_empty = ignore_empty;
+        self.inner = self.inner.clone().ignore_empty(ignore_empty);
         self
     }
 
     #[napi]
     pub fn keep_prefix(&mut self, keep_prefix: bool) -> &Self {
-        self.keep_prefix = keep_prefix;
+        self.inner = self.inner.clone().keep_prefix(keep_prefix);
         self
     }
 
     pub(crate) fn into_config_source(&self) -> BoxedSource {
-        let mut env = config::Environment::default();
-        if let Some(p) = &self.prefix {
-            env = env.with_prefix(p);
-        }
-        if let Some(s) = &self.separator {
-            env = env.separator(s);
-        }
-        env = env.ignore_empty(self.ignore_empty);
-        env = env.keep_prefix(self.keep_prefix);
-        BoxedSource(Box::new(env))
+        BoxedSource(Box::new(self.inner.clone()))
     }
 }

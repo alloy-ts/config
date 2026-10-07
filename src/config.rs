@@ -1,10 +1,11 @@
-use config::{Config as InnerConfig, ConfigError, Map, Source, Value as ConfigValue};
+use std::collections::HashMap;
+use ::config::{Config as InnerConfig, ConfigError, Map, Source, Value as ConfigValue};
 use napi_derive::napi;
 use serde::de::{Deserializer, Visitor};
 use serde::{Deserialize, Serialize};
 
 use crate::builder::ConfigBuilder;
-use crate::json_to_config_value;
+use crate::value::{Value, to_napi_err};
 
 /// A prioritized configuration repository.
 ///
@@ -19,53 +20,58 @@ pub struct Config {
 #[napi]
 impl Config {
     /// Creates new [`ConfigBuilder`] instance
-    #[napi(factory)]
+    #[napi]
     pub fn builder() -> ConfigBuilder {
         ConfigBuilder::default()
     }
 
     #[napi(getter)]
-    pub fn cache(&self) -> napi::Result<serde_json::Value> {
-        serde_json::Value::deserialize(self.inner.cache.clone())
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    pub fn cache(&self) -> Value {
+        Value {
+            inner: self.inner.cache.clone(),
+        }
     }
 
     #[napi]
     pub fn get_string(&self, key: String) -> napi::Result<String> {
         self.inner
             .get_string(&key)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .map_err(to_napi_err)
     }
 
     #[napi]
     pub fn get_int(&self, key: String) -> napi::Result<i64> {
         self.inner
             .get_int(&key)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .map_err(to_napi_err)
     }
 
     #[napi]
     pub fn get_float(&self, key: String) -> napi::Result<f64> {
         self.inner
             .get_float(&key)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .map_err(to_napi_err)
     }
 
     #[napi]
     pub fn get_bool(&self, key: String) -> napi::Result<bool> {
         self.inner
             .get_bool(&key)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .map_err(to_napi_err)
     }
 
     #[napi]
-    pub fn get_table(&self, key: String) -> napi::Result<serde_json::Value> {
+    pub fn get_table(&self, key: String) -> napi::Result<HashMap<String, serde_json::Value>> {
         let table = self
             .inner
             .get_table(&key)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        serde_json::Value::deserialize(ConfigValue::new(None, table))
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .map_err(to_napi_err)?;
+        let mut map = HashMap::new();
+        for (k, v) in table {
+            let val = v.try_deserialize::<serde_json::Value>().map_err(to_napi_err)?;
+            map.insert(k, val);
+        }
+        Ok(map)
     }
 
     #[napi]
@@ -73,21 +79,20 @@ impl Config {
         let array = self
             .inner
             .get_array(&key)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-        array
-            .into_iter()
-            .map(|v| {
-                serde_json::Value::deserialize(v)
-                    .map_err(|e| napi::Error::from_reason(e.to_string()))
-            })
-            .collect()
+            .map_err(to_napi_err)?;
+        let mut vec = Vec::new();
+        for v in array {
+            let val = v.try_deserialize::<serde_json::Value>().map_err(to_napi_err)?;
+            vec.push(val);
+        }
+        Ok(vec)
     }
 
     #[napi]
     pub fn get(&self, key: String) -> napi::Result<serde_json::Value> {
         self.inner
             .get::<serde_json::Value>(&key)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .map_err(to_napi_err)
     }
 
     #[napi]
@@ -95,13 +100,13 @@ impl Config {
         self.inner
             .clone()
             .try_deserialize::<serde_json::Value>()
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+            .map_err(to_napi_err)
     }
 
     #[napi(factory)]
     pub fn try_from(from: serde_json::Value) -> napi::Result<Config> {
         let inner = InnerConfig::try_from(&from)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+            .map_err(to_napi_err)?;
         Ok(Self { inner })
     }
 }
@@ -296,128 +301,4 @@ impl Source for Config {
     fn collect_to(&self, cache: &mut ConfigValue) -> Result<(), ConfigError> {
         self.inner.collect_to(cache)
     }
-}
-
-/// A configuration value.
-#[napi]
-#[derive(Clone)]
-pub struct Value {
-  pub(crate) inner: ::config::Value,
-}
-
-#[napi]
-impl Value {
-  /// Create a new value instance that will remember its source uri.
-  #[napi(factory, ts_args_type = "value: any, origin?: string")]
-  pub fn new(value: serde_json::Value, origin: Option<String>) -> napi::Result<Value> {
-    let config_val = json_to_config_value(value)?;
-    Ok(Value {
-      inner: ::config::Value::new(origin.as_ref(), config_val.kind),
-    })
-  }
-
-  /// Get the description of the original location of the value.
-  #[napi]
-  pub fn origin(&self) -> Option<String> {
-    self.inner.origin().map(|s| s.to_string())
-  }
-
-  /// Attempt to deserialize this value into the requested type.
-  #[napi]
-  pub fn try_deserialize(&self) -> napi::Result<serde_json::Value> {
-    self.inner
-      .clone()
-      .try_deserialize::<serde_json::Value>()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  /// Returns self as a bool, if possible.
-  #[napi]
-  pub fn into_bool(&self) -> napi::Result<bool> {
-    self.inner
-      .clone()
-      .into_bool()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  /// Returns self into an i64, if possible.
-  #[napi]
-  pub fn into_int(&self) -> napi::Result<i64> {
-    self.inner
-      .clone()
-      .into_int()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  /// Returns self into an i128, if possible.
-  #[napi]
-  pub fn into_int128(&self) -> napi::Result<i64> {
-    self.inner
-      .clone()
-      .into_int128()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-      .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("i128 overflow")))
-  }
-
-  /// Returns self into an u64, if possible.
-  #[napi]
-  pub fn into_uint(&self) -> napi::Result<i64> {
-    self.inner
-      .clone()
-      .into_uint()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-      .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("u64 overflow")))
-  }
-
-  /// Returns self into an u128, if possible.
-  #[napi]
-  pub fn into_uint128(&self) -> napi::Result<i64> {
-    self.inner
-      .clone()
-      .into_uint128()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-      .and_then(|val| val.try_into().map_err(|_| napi::Error::from_reason("u128 overflow")))
-  }
-
-  /// Returns self into a f64, if possible.
-  #[napi]
-  pub fn into_float(&self) -> napi::Result<f64> {
-    self.inner
-      .clone()
-      .into_float()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  /// Returns self into a string, if possible.
-  #[napi]
-  pub fn into_string(&self) -> napi::Result<String> {
-    self.inner
-      .clone()
-      .into_string()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  /// Returns self into an array, if possible.
-  #[napi]
-  pub fn into_array(&self) -> napi::Result<Vec<Value>> {
-    let array = self.inner
-      .clone()
-      .into_array()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-    Ok(array.into_iter().map(|v| Value { inner: v }).collect())
-  }
-
-  /// If the Value is a Table, returns the associated HashMap.
-  #[napi]
-  pub fn into_table(&self) -> napi::Result<HashMap<String, Value>> {
-    let table = self.inner
-      .clone()
-      .into_table()
-      .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-    let mut map = HashMap::new();
-    for (k, v) in table {
-      map.insert(k, Value { inner: v });
-    }
-    Ok(map)
-  }
 }
