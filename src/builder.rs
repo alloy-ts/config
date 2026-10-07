@@ -23,7 +23,10 @@ impl ConfigBuilder {
     }
 
     #[napi]
-    pub fn set_schema(&mut self, _schema: napi::bindgen_prelude::Unknown) -> &Self {
+    pub fn set_schema(
+        &mut self,
+        #[napi(ts_arg_type = "any")] _schema: napi::bindgen_prelude::Unknown,
+    ) -> &Self {
         self.schema = None;
         self
     }

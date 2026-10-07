@@ -1,5 +1,5 @@
 import { ConfigBuilder } from "../dist/index.js";
-import * as Schema from "../src/schema.ts";
+import * as Schema from "../packages/schema/src/index.ts";
 
 function main() {
   const AppSchema = Schema.object({

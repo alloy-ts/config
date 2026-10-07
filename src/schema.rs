@@ -1,3 +1,5 @@
+//! Configuration schema.
+
 use napi_derive::napi;
 use std::collections::HashMap;
 
@@ -5,8 +7,8 @@ use std::collections::HashMap;
 #[napi]
 #[derive(Debug, Clone, Default)]
 pub struct ConfigSchema {
-    coerce_serde_enums: bool,
-    prefixes: HashMap<String, String>,
+    pub(crate) coerce_serde_enums: bool,
+    pub(crate) prefixes: HashMap<String, String>,
 }
 
 #[napi]

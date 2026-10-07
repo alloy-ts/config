@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "vite-plus/test";
-import * as Schema from "./schema.js";
+import * as Schema from "../packages/schema/src/index.js";
 
 describe("Schema type validations", () => {
   it("Primitives & Coercion", () => {
