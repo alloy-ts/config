@@ -19,11 +19,11 @@ test("Config getters (getString, getInt, getFloat, getBool, getTable, getArray)"
   expect(config.getBool("flag")).toBe(true);
 
   const table = config.getTable("table");
-  expect(table["innerKey"]?.intoString()).toBe("innerVal");
+  expect(table["innerKey"]).toBe("innerVal");
 
   const arr = config.getArray("arr");
   expect(arr.length).toBe(3);
-  expect(arr[0]?.intoString()).toBe("a");
+  expect(arr[0]).toBe("a");
 });
 
 test("Config.tryFrom and tryDeserialize", () => {
@@ -41,9 +41,10 @@ test("Config.tryFrom and tryDeserialize", () => {
 });
 
 test("Config.builder chaining with Config.File", () => {
+  const fileSource = File.fromStr('{"setting": "json_file_value"}', FileFormat.Json);
   const config = Config.builder()
     .setDefault("default", "1")
-    .addSource(new Config.File("config/settings", Config.File.Format.Json))
+    .addSource(fileSource)
     .setOverride("override", "1")
     .build();
 

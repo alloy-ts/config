@@ -20,6 +20,9 @@ async function run() {
     useNapiCross,
     crossCompile,
     useCross,
+    jsBinding: "../index.js",
+    dts: "../index.d.ts",
+    constEnum: false,
   });
 }
 
